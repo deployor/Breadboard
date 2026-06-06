@@ -1,0 +1,75 @@
+export type ProjectStatus =
+  | "draft"
+  | "shipped"
+  | "reviewed"
+  | "paid_out"
+  | "fulfilled"
+  | "needs_changes"
+  | "approved"
+  | "rejected";
+
+export type OrderStatus = "pending" | "being_fulfilled" | "sent" | "cancelled";
+
+export type SidebarUser = {
+  name?: string | null;
+  email?: string | null;
+};
+
+export type SidebarLink = {
+  name: string;
+  href: string;
+  icon: string;
+};
+
+export type SidebarSection = {
+  name: string;
+  links: SidebarLink[];
+};
+
+export type ShipInput = {
+  email: string;
+  playableUrl: string;
+  codeUrl: string;
+  screenshotUrl: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  region: string;
+  country: string;
+  postalCode: string;
+  birthday: string;
+  firstName: string;
+  lastName: string;
+};
+
+export type ShippingAddress = {
+  name: string;
+  line1: string;
+  line2: string;
+  city: string;
+  region: string;
+  postalCode: string;
+  country: string;
+};
+
+export type CheckoutItem = {
+  productId: number;
+  quantity: number;
+};
+
+export type ReviewNote = {
+  id: number;
+  projectId: number | null;
+  targetUserId: string | null;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SignupState = {
+  success?: boolean;
+  message?: string;
+  email?: string;
+};

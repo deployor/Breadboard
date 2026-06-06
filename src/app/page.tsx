@@ -1,11 +1,11 @@
 import Image from "next/image";
-import { FAQCards } from "@/components/faq-cards";
-import { Footer } from "@/components/footer";
-import { Header } from "@/components/header";
-import { Hero } from "@/components/hero";
-import { ScrollIndicator } from "@/components/scroll-indicator";
-import { Steps } from "@/components/steps";
-import { badgeLinkClass, pageGridClass } from "@/components/styles";
+import { Footer } from "@/components/layout/footer";
+import { Header } from "@/components/layout/header";
+import { FAQCards } from "@/components/marketing/faq-cards";
+import { Hero } from "@/components/marketing/hero";
+import { ScrollIndicator } from "@/components/marketing/scroll-indicator";
+import { Steps } from "@/components/marketing/steps";
+import { badgeLinkClass, pageGridClass } from "@/components/shared/styles";
 
 export default function Home() {
   return (

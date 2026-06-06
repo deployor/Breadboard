@@ -1,7 +1,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Share_Tech_Mono } from "next/font/google";
-import { ClientEffects } from "@/components/client-effects";
+import { ClientEffects } from "@/components/shared/client-effects";
 import "./globals.css";
 
 const shareTechMono = Share_Tech_Mono({
