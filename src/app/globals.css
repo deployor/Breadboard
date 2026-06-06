@@ -1,0 +1,55 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-mono: var(--font-share-tech-mono), monospace;
+  --font-sans: var(--font-share-tech-mono), monospace;
+}
+
+:root {
+  --bg-base: #fefffe;
+  --text-main: #191a23;
+}
+
+html {
+  background-color: #bd0f32;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-share-tech-mono), monospace;
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  opacity: 0.08;
+  mix-blend-mode: multiply;
+  z-index: 0;
+}
+
+@keyframes chevron-cascade {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) rotate(45deg);
+  }
+  35% {
+    opacity: 0.95;
+    transform: translateY(0) rotate(45deg);
+  }
+  70% {
+    opacity: 0.25;
+    transform: translateY(4px) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px) rotate(45deg);
+  }
+}
