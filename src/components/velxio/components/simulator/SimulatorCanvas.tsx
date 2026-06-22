@@ -20,6 +20,14 @@ import {
 } from "@/components/velxio/components/DynamicComponent";
 import { InstrumentComponent } from "@/components/velxio/components/components-instruments/InstrumentComponent";
 import { ComponentRegistry } from "@/services/velxio/services/ComponentRegistry";
+import {
+  countKitBoards,
+  countKitComponents,
+  isKitBoard,
+  isKitComponent,
+  kitBoardLimit,
+  kitComponentLimit,
+} from "@/lib/velxio/data/kitInventory";
 import { getTabSessionId } from "@/lib/velxio/simulation/Esp32Bridge";
 import { CameraToggle } from "@/components/velxio/components/simulator/CameraToggle";
 import { WireLayer } from "@/components/velxio/components/simulator/WireLayer";
@@ -130,6 +138,7 @@ export const SimulatorCanvas = ({
   const {
     boards,
     activeBoardId,
+    kitType,
     setBoardPosition,
     addBoard,
     components,
@@ -1402,6 +1411,9 @@ export const SimulatorCanvas = ({
   // Handle component selection from modal
   const handleSelectComponent = (metadata: ComponentMetadata) => {
     if (readOnly) return;
+    if (!isKitComponent(metadata.id, kitType)) return;
+    const counts = countKitComponents(components);
+    if ((counts[metadata.id] ?? 0) >= kitComponentLimit(metadata.id, kitType)) return;
     // Anchor new components to the visible top-left of the canvas, so they
     // appear in the user's current viewport regardless of pan/zoom (instead
     // of growing off-screen at fixed world coords like (400, 100 + row*250)).
@@ -3123,8 +3135,14 @@ export const SimulatorCanvas = ({
         isOpen={showComponentPicker && !readOnly}
         onClose={() => setShowComponentPicker(false)}
         onSelectComponent={handleSelectComponent}
+        components={components}
+        boards={boards}
+        kitType={kitType}
         onSelectBoard={(kind: BoardKind) => {
           if (readOnly) return;
+          if (!isKitBoard(kind, kitType)) return;
+          const boardCounts = countKitBoards(boards);
+          if ((boardCounts[kind] ?? 0) >= kitBoardLimit(kind, kitType)) return;
           trackSelectBoard(kind);
           const sameKind = boards.filter((b) => b.boardKind === kind);
           const newBoardId =

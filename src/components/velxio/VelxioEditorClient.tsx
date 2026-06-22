@@ -13,6 +13,7 @@ import {
   stopActivityTracking,
   markRealActivity,
 } from "@/lib/editor/activityTracker";
+import { createInitialKitPayload } from "@/lib/velxio/data/kitInventory";
 
 const NON_TRACKING_PROJECT_STATUSES = new Set([
   "materials_review",
@@ -39,6 +40,7 @@ type EditorProjectMeta = {
   id: number;
   title: string;
   description: string;
+  kitType: string;
   status: string;
   editable: boolean;
   lastSavedAt?: string | null;
@@ -296,13 +298,15 @@ export function VelxioNextEditor({
         const locked = serverReadOnly || !data.project.editable || data.version !== null;
         setReadOnly(locked);
 
-        if (data.editorData) {
+        const editorData = data.editorData ?? createInitialKitPayload(data.project.kitType);
+        if (editorData) {
           modules.useSimulatorStore.getState().loadProjectState({
-            boards: data.editorData.boards,
-            fileGroups: data.editorData.fileGroups,
-            components: data.editorData.components,
-            wires: data.editorData.wires,
-            activeBoardId: data.editorData.activeBoardId,
+            boards: editorData.boards,
+            fileGroups: editorData.fileGroups,
+            components: editorData.components,
+            wires: editorData.wires,
+            activeBoardId: editorData.activeBoardId,
+            kitType: data.project.kitType,
           });
         }
 

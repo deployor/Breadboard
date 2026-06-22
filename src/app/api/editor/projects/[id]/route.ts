@@ -57,6 +57,7 @@ export async function GET(
       id: project.id,
       title: project.title,
       description: project.description,
+      kitType: project.kitType,
       status: project.status,
       editable: canWriteEditorProject(project, session),
       lastSavedAt: project.editorLastSavedAt,

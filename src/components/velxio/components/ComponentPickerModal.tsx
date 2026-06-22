@@ -19,6 +19,13 @@ import type {
 } from "@/lib/velxio/types/component-metadata";
 import type { BoardKind } from "@/lib/velxio/types/board";
 import { BOARD_KIND_LABELS } from "@/lib/velxio/types/board";
+import {
+  countKitBoards,
+  countKitComponents,
+  isKitBoard,
+  kitBoardLimit,
+  kitComponentLimit,
+} from "@/lib/velxio/data/kitInventory";
 import raspberryPi3Svg from "@/components/velxio/assets/Raspberry_Pi_3_illustration.svg";
 import { Attiny85 } from "@/components/velxio/components/velxio-components/Attiny85";
 import "@/components/velxio/components/velxio-components/Esp32Element"; // registers velxio-esp32
@@ -37,6 +44,9 @@ interface ComponentPickerModalProps {
   onClose: () => void;
   onSelectComponent: (metadata: ComponentMetadata) => void;
   onSelectBoard?: (kind: BoardKind) => void;
+  components?: { metadataId?: string }[];
+  boards?: { boardKind?: BoardKind }[];
+  kitType?: string | null;
 }
 
 const BOARD_DESCRIPTIONS: Partial<Record<BoardKind, string>> = {
@@ -105,6 +115,9 @@ export const ComponentPickerModal: React.FC<ComponentPickerModalProps> = ({
   onClose,
   onSelectComponent,
   onSelectBoard,
+  components = [],
+  boards = [],
+  kitType,
 }) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,6 +126,8 @@ export const ComponentPickerModal: React.FC<ComponentPickerModalProps> = ({
   >("all");
   const [registry] = useState(() => ComponentRegistry.getInstance());
   const [isLoading, setIsLoading] = useState(true);
+  const componentCounts = useMemo(() => countKitComponents(components), [components]);
+  const boardCounts = useMemo(() => countKitBoards(boards), [boards]);
 
   // Wait for registry to load
   useEffect(() => {
@@ -135,8 +150,11 @@ export const ComponentPickerModal: React.FC<ComponentPickerModalProps> = ({
       components = components.filter((c) => c.category === selectedCategory);
     }
 
-    return components;
-  }, [searchQuery, selectedCategory, registry, isLoading]);
+    return components.filter(
+      (component) =>
+        (componentCounts[component.id] ?? 0) < kitComponentLimit(component.id, kitType),
+    );
+  }, [searchQuery, selectedCategory, registry, isLoading, componentCounts, kitType]);
 
   // Get available categories
   const categories = useMemo(() => {
@@ -231,7 +249,11 @@ export const ComponentPickerModal: React.FC<ComponentPickerModalProps> = ({
         {/* Boards Panel */}
         {selectedCategory === "boards" ? (
           <div className="components-grid">
-            {ALL_BOARDS.map((kind) => (
+            {ALL_BOARDS.filter(
+              (kind) =>
+                isKitBoard(kind, kitType) &&
+                (boardCounts[kind] ?? 0) < kitBoardLimit(kind, kitType),
+            ).map((kind) => (
               <BoardCard
                 key={kind}
                 kind={kind}
@@ -259,10 +281,12 @@ export const ComponentPickerModal: React.FC<ComponentPickerModalProps> = ({
                 >
                   {ALL_BOARDS.filter(
                     (k) =>
-                      !searchQuery ||
-                      BOARD_KIND_LABELS[k]
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase()),
+                      isKitBoard(k, kitType) &&
+                      (boardCounts[k] ?? 0) < kitBoardLimit(k, kitType) &&
+                      (!searchQuery ||
+                        BOARD_KIND_LABELS[k]
+                          .toLowerCase()
+                          .includes(searchQuery.toLowerCase())),
                   ).map((kind) => (
                     <BoardCard
                       key={kind}
@@ -302,6 +326,7 @@ export const ComponentPickerModal: React.FC<ComponentPickerModalProps> = ({
                     <ComponentCard
                       key={component.id}
                       component={component}
+                      remaining={kitComponentLimit(component.id, kitType) - (componentCounts[component.id] ?? 0)}
                       onSelect={() => {
                         // Pro overlays can intercept clicks on pro_only
                         // components by setting window.__velxio_pro_gate__.
@@ -343,6 +368,7 @@ export const ComponentPickerModal: React.FC<ComponentPickerModalProps> = ({
  */
 interface ComponentCardProps {
   component: ComponentMetadata;
+  remaining: number;
   onSelect: () => void;
 }
 
@@ -361,6 +387,7 @@ const PASSIVE_TAGS = new Set([
 
 const ComponentCard: React.FC<ComponentCardProps> = ({
   component,
+  remaining,
   onSelect,
 }) => {
   const thumbnailRef = React.useRef<HTMLDivElement>(null);
@@ -449,6 +476,7 @@ const ComponentCard: React.FC<ComponentCardProps> = ({
           {component.pinCount > 0 && (
             <span className="card-pins">{component.pinCount} pins</span>
           )}
+          <span className="card-pins">{remaining} left</span>
         </div>
       </div>
     </button>

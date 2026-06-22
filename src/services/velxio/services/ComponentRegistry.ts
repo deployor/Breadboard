@@ -11,6 +11,7 @@ import type {
   ComponentCategory,
   ComponentMetadataCollection,
 } from "@/lib/velxio/types/component-metadata";
+import { filterAnyKitComponents } from "@/lib/velxio/data/kitInventory";
 
 export class ComponentRegistry {
   private static instance: ComponentRegistry;
@@ -258,7 +259,7 @@ export class ComponentRegistry {
         ],
       });
 
-      this.processMetadata(data.components);
+      this.processMetadata(filterAnyKitComponents(data.components));
       this.loaded = true;
 
       console.log(

@@ -58,6 +58,15 @@ import {
   updateWires as icUpdateWires,
   setInterconnectRuntime,
 } from "@/lib/velxio/simulation/Interconnect";
+import {
+  countKitBoards,
+  countKitComponents,
+  isKitBoard,
+  isKitComponent,
+  kitBoardLimit,
+  kitComponentLimit,
+  normalizeKitType,
+} from "@/lib/velxio/data/kitInventory";
 
 // ── Sensor pre-registration ──────────────────────────────────────────────────
 // Maps component metadataId → { sensorType, dataPinName, propertyKeys }
@@ -835,6 +844,7 @@ interface SimulatorState {
   // ── Multi-board state ───────────────────────────────────────────────────
   boards: BoardInstance[];
   activeBoardId: string | null;
+  kitType: "arduino" | "esp32";
 
   addBoard: (
     boardKind: BoardKind,
@@ -852,6 +862,7 @@ interface SimulatorState {
     components: Component[];
     wires: Wire[];
     activeBoardId: string | null;
+    kitType?: string | null;
   }) => void;
   updateBoard: (boardId: string, updates: Partial<BoardInstance>) => void;
   setBoardPosition: (pos: { x: number; y: number }, boardId?: string) => void;
@@ -1109,6 +1120,7 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     // ── Multi-board state ─────────────────────────────────────────────────
     boards: [INITIAL_BOARD],
     activeBoardId: INITIAL_BOARD_ID,
+    kitType: "arduino",
 
     addBoard: (
       boardKind: BoardKind,
@@ -1116,6 +1128,11 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
       y: number,
       explicitId?: string,
     ) => {
+      const kitType = get().kitType;
+      if (!isKitBoard(boardKind, kitType)) return;
+      const boardCounts = countKitBoards(get().boards);
+      if ((boardCounts[boardKind] ?? 0) >= kitBoardLimit(boardKind, kitType)) return;
+
       let id: string;
       if (explicitId) {
         id = explicitId;
@@ -1391,6 +1408,8 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     },
 
     loadProjectState: (payload) => {
+      const kitType = normalizeKitType(payload.kitType);
+      set({ kitType });
       const {
         stopSimulation,
         removeBoard,
@@ -2488,7 +2507,17 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     wireInProgress: null,
 
     addComponent: (component) =>
-      set((state) => ({ components: [...state.components, component] })),
+      set((state) => {
+        const metadataId = component.metadataId;
+        if (!metadataId || !isKitComponent(metadataId, state.kitType)) return state;
+
+        const counts = countKitComponents(state.components);
+        if ((counts[metadataId] ?? 0) >= kitComponentLimit(metadataId, state.kitType)) {
+          return state;
+        }
+
+        return { components: [...state.components, component] };
+      }),
 
     removeComponent: (id) =>
       set((state) => ({
@@ -2534,7 +2563,19 @@ export const useSimulatorStore = create<SimulatorState>((set, get) => {
     setComponents: (components) => {
       // Bulk replacement (project load / clear) — any pending undo/redo
       // would point at component IDs that no longer exist after this.
-      set({ components, history: [], historyIndex: -1 });
+      set((state) => {
+        const counts: Record<string, number> = {};
+        const next = components.filter((component) => {
+          const metadataId = component.metadataId;
+          if (!metadataId || !isKitComponent(metadataId, state.kitType)) return false;
+          const count = counts[metadataId] ?? 0;
+          if (count >= kitComponentLimit(metadataId, state.kitType)) return false;
+          counts[metadataId] = count + 1;
+          return true;
+        });
+
+        return { components: next, history: [], historyIndex: -1 };
+      });
     },
 
     addWire: (wire) => set((state) => ({ wires: [...state.wires, wire] })),
