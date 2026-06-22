@@ -10,6 +10,16 @@
 :root {
   --bg-base: #fefffe;
   --text-main: #191a23;
+  --bb-red: #bd0f32;
+  --bb-ink: #191a23;
+  --bb-paper: #fefffe;
+  --bb-cloud: #f4f4f4;
+  --bb-border: #000;
+  --bb-shadow-sm: 2px 2px 0 #000;
+  --bb-shadow-md: 4px 4px 0 #000;
+  --bb-shadow-red: 4px 4px 0 #bd0f32;
+  --bb-radius: 16px;
+  --bb-radius-lg: 20px;
 }
 
 html {
@@ -33,6 +43,33 @@ body::before {
   opacity: 0.08;
   mix-blend-mode: multiply;
   z-index: 0;
+}
+
+[data-reveal],
+.faq-card,
+body:not(.docs-page) main > section {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+::selection {
+  background: var(--bb-red);
+  color: white;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
 }
 
 @keyframes chevron-cascade {

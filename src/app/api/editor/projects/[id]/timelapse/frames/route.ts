@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getSession, isAdminSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
@@ -21,6 +21,11 @@ export async function GET(
 
   const url = new URL(request.url);
   const sessionIdParam = url.searchParams.get("session_id");
+  const untilParam = url.searchParams.get("until");
+  const until = untilParam ? new Date(untilParam) : null;
+  if (untilParam && (!until || Number.isNaN(until.getTime()))) {
+    return NextResponse.json({ error: "Invalid until" }, { status: 400 });
+  }
 
   const sess = await getSession();
   if (!sess)
@@ -50,7 +55,14 @@ export async function GET(
         activeSeconds: editorActivitySessions.activeSeconds,
       })
       .from(editorActivitySessions)
-      .where(eq(editorActivitySessions.projectId, projectId))
+      .where(
+        until
+          ? and(
+              eq(editorActivitySessions.projectId, projectId),
+              lte(editorActivitySessions.startedAt, until),
+            )
+          : eq(editorActivitySessions.projectId, projectId),
+      )
       .orderBy(asc(editorActivitySessions.startedAt));
 
     if (sessions.length === 0) {
@@ -66,7 +78,14 @@ export async function GET(
         stateData: editorTimelapseSnapshots.stateData,
       })
       .from(editorTimelapseSnapshots)
-      .where(inArray(editorTimelapseSnapshots.sessionId, sessionIds))
+      .where(
+        until
+          ? and(
+              inArray(editorTimelapseSnapshots.sessionId, sessionIds),
+              lte(editorTimelapseSnapshots.capturedAt, until),
+            )
+          : inArray(editorTimelapseSnapshots.sessionId, sessionIds),
+      )
       .orderBy(desc(editorTimelapseSnapshots.capturedAt))
       .limit(MAX_STITCHED_FRAMES);
     const snapshots = newestSnapshots.toReversed();
@@ -108,7 +127,14 @@ export async function GET(
       stateData: editorTimelapseSnapshots.stateData,
     })
     .from(editorTimelapseSnapshots)
-    .where(eq(editorTimelapseSnapshots.sessionId, sessionId))
+    .where(
+      until
+        ? and(
+            eq(editorTimelapseSnapshots.sessionId, sessionId),
+            lte(editorTimelapseSnapshots.capturedAt, until),
+          )
+        : eq(editorTimelapseSnapshots.sessionId, sessionId),
+    )
     .orderBy(asc(editorTimelapseSnapshots.capturedAt));
 
   return NextResponse.json({

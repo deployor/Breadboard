@@ -4,6 +4,9 @@ import Link from "next/link";
 import { HiArrowRight, HiHandRaised, HiPencilSquare } from "react-icons/hi2";
 import { LoginButton } from "@/components/shared/auth-buttons";
 import { Badge } from "@/components/ui/badge";
+import { buttonClass } from "@/components/ui/button";
+import { Card, CardSection, Surface } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
 import { projects } from "@/lib/db/schema";
@@ -28,17 +31,19 @@ export default async function PlatformDashboardPage() {
 
   if (!session) {
     return (
-      <main className="max-w-3xl rounded-[16px] border border-black bg-white p-6 shadow-[4px_4px_0_#000]">
-        <div className="flex items-center gap-3">
-          <HiHandRaised className="size-7 text-[#BD0F32]" />
-          <h1 className="text-3xl font-black text-black">Welcome</h1>
-        </div>
-        <p className="mt-3 text-sm leading-relaxed text-black/60">
-          Log in to see your projects and continue building.
-        </p>
-        <div className="mt-5">
-          <LoginButton callbackURL="/platform" />
-        </div>
+      <main className="max-w-3xl">
+        <Surface>
+          <div className="flex items-center gap-3">
+            <HiHandRaised className="size-7 text-[#BD0F32]" />
+            <h1 className="text-3xl font-black text-black">Welcome</h1>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-black/60">
+            Log in to see your projects and continue building.
+          </p>
+          <div className="mt-5">
+            <LoginButton callbackURL="/platform" />
+          </div>
+        </Surface>
       </main>
     );
   }
@@ -59,7 +64,7 @@ export default async function PlatformDashboardPage() {
   return (
     <main className="max-w-6xl space-y-6">
       <section className="grid gap-5 lg:grid-cols-[1fr_390px]">
-        <div className="rounded-[16px] border border-black bg-white p-6 shadow-[4px_4px_0_#000]">
+        <Surface>
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
@@ -71,12 +76,16 @@ export default async function PlatformDashboardPage() {
             </div>
             <Link
               href="/platform/projects"
-              className="shrink-0 rounded-xl bg-[#BD0F32] px-4 py-2.5 text-sm font-black text-white no-underline transition hover:bg-black"
+              className={buttonClass({
+                tone: "primary",
+                size: "sm",
+                className: "shrink-0",
+              })}
             >
               New project
             </Link>
           </div>
-        </div>
+        </Surface>
 
         <Link
           href="/gallery"
@@ -100,7 +109,7 @@ export default async function PlatformDashboardPage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1fr_330px]">
-        <div className="rounded-[16px] border border-black bg-white p-3 shadow-[4px_4px_0_#000]">
+        <Surface className="p-3">
           <div className="flex items-center justify-between px-3 py-2">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-black text-black">Your projects</h2>
@@ -142,7 +151,7 @@ export default async function PlatformDashboardPage() {
                       {editable ? (
                         <Link
                           href={`/editor/${project.id}`}
-                          className="inline-flex items-center gap-2 rounded-xl bg-black px-3 py-2 text-sm font-black text-white no-underline transition hover:bg-[#BD0F32]"
+                          className={buttonClass({ tone: "ink", size: "sm" })}
                         >
                           <HiPencilSquare className="size-4" />
                           Editor
@@ -150,7 +159,11 @@ export default async function PlatformDashboardPage() {
                       ) : null}
                       <Link
                         href="/platform/projects"
-                        className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-black text-zinc-600 no-underline transition hover:bg-zinc-100 hover:text-black"
+                        className={buttonClass({
+                          tone: "paper",
+                          size: "sm",
+                          className: "shadow-none",
+                        })}
                       >
                         Details
                         <HiArrowRight className="size-4" />
@@ -162,40 +175,48 @@ export default async function PlatformDashboardPage() {
             </div>
           ) : (
             <div className="p-5">
-              <h2 className="text-xl font-black text-black">No projects yet</h2>
-              <p className="mt-1 text-sm text-black/55">
-                Start one when you are ready.
-              </p>
-              <Link
-                href="/platform/projects"
-                className="mt-4 inline-flex rounded-xl bg-[#BD0F32] px-4 py-2.5 text-sm font-black text-white no-underline transition hover:bg-black"
-              >
-                Create project
-              </Link>
+              <EmptyState
+                title="No projects yet"
+                description="Start one when you are ready."
+                action={
+                  <Link
+                    href="/platform/projects"
+                    className={buttonClass({ tone: "primary" })}
+                  >
+                    Create project
+                  </Link>
+                }
+              />
             </div>
           )}
-        </div>
+        </Surface>
 
         <div className="grid gap-3 content-start">
           {helpCards.map((card) => (
-            <Link
+            <Card
               key={card.href}
-              href={card.href}
-              className="group grid grid-cols-[92px_1fr] overflow-hidden rounded-[14px] border border-black bg-white text-black no-underline shadow-[3px_3px_0_#000] transition hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#BD0F32]"
+              className="group transition hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#BD0F32]"
             >
-              <div className="relative min-h-24 bg-[#f4f4f4]">
-                <Image
-                  src={card.image}
-                  alt=""
-                  fill
-                  sizes="92px"
-                  className="object-cover transition group-hover:scale-105"
-                />
-              </div>
-              <div className="flex items-center p-4">
-                <p className="text-lg font-black leading-tight">{card.title}</p>
-              </div>
-            </Link>
+              <Link
+                href={card.href}
+                className="grid grid-cols-[92px_1fr] text-black no-underline"
+              >
+                <div className="relative min-h-24 bg-[#f4f4f4]">
+                  <Image
+                    src={card.image}
+                    alt=""
+                    fill
+                    sizes="92px"
+                    className="object-cover transition group-hover:scale-105"
+                  />
+                </div>
+                <div className="flex items-center p-4">
+                  <p className="text-lg font-black leading-tight">
+                    {card.title}
+                  </p>
+                </div>
+              </Link>
+            </Card>
           ))}
         </div>
       </section>

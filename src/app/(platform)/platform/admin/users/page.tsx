@@ -2,6 +2,9 @@ import { desc } from "drizzle-orm";
 import Link from "next/link";
 import { LoginButton } from "@/components/shared/auth-buttons";
 import { DocsFrame, PageHero } from "@/components/shared/platform-docs-frame";
+import { buttonClass } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard, StatGrid } from "@/components/ui/stats";
 import { getSession, isAdminSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
 import { account, orders, session, user, userBread } from "@/lib/db/schema";
@@ -107,13 +110,13 @@ export default async function AdminUsersPage() {
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
             href="/platform/admin"
-            className="rounded border border-black px-4 py-2 text-sm transition hover:bg-black hover:text-white"
+            className={buttonClass({ tone: "paper", size: "sm" })}
           >
             Dashboard
           </Link>
           <Link
             href="/platform/admin/orders"
-            className="rounded border border-black px-4 py-2 text-sm transition hover:bg-black hover:text-white"
+            className={buttonClass({ tone: "paper", size: "sm" })}
           >
             Orders
           </Link>
@@ -121,21 +124,16 @@ export default async function AdminUsersPage() {
       </PageHero>
 
       <section className="mx-auto max-w-[1440px] px-2 py-8 sm:px-6 sm:py-12">
-        <div className="mb-8 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-[12px] border-[1.1px] border-black bg-[#fffaf1] p-6 text-center shadow-[4px_4px_0_#000]">
-            <p className="text-3xl font-black text-black">{users.length}</p>
-            <p className="text-sm font-bold text-black/55">Users</p>
-          </div>
-          <div className="rounded-[12px] border-[1.1px] border-black bg-green-50 p-6 text-center shadow-[4px_4px_0_#000]">
-            <p className="text-3xl font-black text-green-800">{totalBread}</p>
-            <p className="text-sm font-bold text-green-700">Total bread</p>
-          </div>
-          <div className="rounded-[12px] border-[1.1px] border-black bg-blue-50 p-6 text-center shadow-[4px_4px_0_#000]">
-            <p className="text-3xl font-black text-blue-800">
-              {activeSessions.length}
-            </p>
-            <p className="text-sm font-bold text-blue-700">Active sessions</p>
-          </div>
+        <div className="mb-8">
+          <StatGrid>
+            <StatCard label="Users" value={users.length} tone="cream" />
+            <StatCard label="Total bread" value={totalBread} tone="green" />
+            <StatCard
+              label="Active sessions"
+              value={activeSessions.length}
+              tone="blue"
+            />
+          </StatGrid>
         </div>
 
         <div className="space-y-4">
@@ -144,9 +142,10 @@ export default async function AdminUsersPage() {
             currentUserId={currentSession.user.id}
           />
           {users.length === 0 ? (
-            <div className="rounded-[20px] border-[1.5px] border-dashed border-black bg-white p-8 text-center shadow-[5px_5px_0_#000]">
-              <p className="text-xl font-black text-black">No users yet</p>
-            </div>
+            <EmptyState
+              title="No users yet"
+              description="No platform accounts have been created."
+            />
           ) : null}
         </div>
       </section>

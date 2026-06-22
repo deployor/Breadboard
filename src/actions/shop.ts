@@ -10,6 +10,7 @@ import {
   orderItems,
   orders,
   products,
+  projects,
   userBread,
 } from "@/lib/db/schema";
 import type {
@@ -363,19 +364,85 @@ export async function updateOrderStatus(
   const id = requirePositiveInt(orderId, "Order ID");
   const nextStatus = normalizeOrderStatus(status);
 
-  const [updatedOrder] = await db
-    .update(orders)
-    .set({
-      status: nextStatus,
-      ...(trackingInfo !== undefined
-        ? { trackingInfo: trackingInfo.trim() }
-        : {}),
-      ...(adminNotes !== undefined ? { adminNotes: adminNotes.trim() } : {}),
-      updatedAt: new Date(),
-    })
+  const existing = await db
+    .select()
+    .from(orders)
     .where(eq(orders.id, id))
-    .returning({ id: orders.id });
-  if (!updatedOrder) throw new Error("Order not found");
+    .limit(1);
+  const order = existing[0];
+  if (!order) throw new Error("Order not found");
+  if (
+    order.source === "project_kit" &&
+    order.acceptedAt &&
+    nextStatus === "pending"
+  ) {
+    throw new Error("Accepted kit orders are final");
+  }
+
+  await db.transaction(async (tx) => {
+    let latestAddress = {};
+    if (
+      order.source === "project_kit" &&
+      order.projectId &&
+      nextStatus === "being_fulfilled"
+    ) {
+      const projectRows = await tx
+        .select()
+        .from(projects)
+        .where(eq(projects.id, order.projectId))
+        .limit(1);
+      const project = projectRows[0];
+      if (project) {
+        latestAddress = {
+          shippingName: `${project.firstName} ${project.lastName}`.trim(),
+          shippingLine1: project.addressLine1,
+          shippingLine2: project.addressLine2,
+          shippingCity: project.city,
+          shippingRegion: project.region,
+          shippingPostalCode: project.postalCode,
+          shippingCountry: project.country,
+        };
+      }
+    }
+
+    const [updatedOrder] = await tx
+      .update(orders)
+      .set({
+        ...latestAddress,
+        status: nextStatus,
+        ...(nextStatus === "being_fulfilled" && !order.acceptedAt
+          ? { acceptedAt: new Date() }
+          : {}),
+        ...(trackingInfo !== undefined
+          ? { trackingInfo: trackingInfo.trim() }
+          : {}),
+        ...(adminNotes !== undefined ? { adminNotes: adminNotes.trim() } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(orders.id, id))
+      .returning({ id: orders.id });
+    if (!updatedOrder) throw new Error("Order not found");
+
+    if (order.source === "project_kit" && order.projectId) {
+      if (nextStatus === "being_fulfilled") {
+        await tx
+          .update(projects)
+          .set({ status: "kit_fulfillment", updatedAt: new Date() })
+          .where(eq(projects.id, order.projectId));
+      }
+      if (nextStatus === "sent") {
+        await tx
+          .update(projects)
+          .set({
+            status: "kit_sent",
+            shippedAt: new Date(),
+            kitSentAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(projects.id, order.projectId));
+      }
+    }
+  });
 
   revalidatePath("/platform/admin/orders");
   revalidatePath("/platform/admin/fulfillment");

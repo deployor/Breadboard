@@ -142,13 +142,14 @@ function useScrollReveal() {
     const targets = Array.from(
       document.querySelectorAll<HTMLElement>(revealSelector),
     );
-    gsap.set(targets, { autoAlpha: 0, y: 24 });
 
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
           const target = entry.target as HTMLElement;
+          if (target.dataset.revealed === "true") continue;
+          target.dataset.revealed = "true";
           gsap.to(target, {
             autoAlpha: 1,
             y: 0,

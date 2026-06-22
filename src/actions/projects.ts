@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/guards";
 import {
+  confirmKitReceivedForUser,
   createProjectForUser,
   shipProjectForUser,
+  submitDemoForUser,
   updateProjectBasicsForUser,
 } from "@/lib/projects/mutations";
 import type { ProjectFormState, ShipInput } from "@/types";
@@ -22,7 +24,6 @@ const createProjectSchema = projectBasicsSchema
 
 const shipProjectSchema = z.object({
   email: z.email("A valid email is required").trim(),
-  playableUrl: z.string().trim().min(1, "Playable URL is required").max(2048),
   codeUrl: z.string().trim().min(1, "Code URL is required").max(2048),
   screenshotUrl: z
     .string()
@@ -141,7 +142,6 @@ export async function shipProjectFromForm(
 
     const data: ShipInput = shipProjectSchema.parse({
       email: formData.get("email"),
-      playableUrl: formData.get("playableUrl"),
       codeUrl: formData.get("codeUrl"),
       screenshotUrl: formData.get("screenshotUrl"),
       addressLine1: formData.get("addressLine1"),
@@ -156,7 +156,7 @@ export async function shipProjectFromForm(
     });
 
     const session = await requireSession();
-    await shipProjectForUser(
+    const tracked = await shipProjectForUser(
       { userId: session.user.id, email: session.user.email },
       projectId,
       data,
@@ -166,7 +166,54 @@ export async function shipProjectFromForm(
 
     return {
       success: true,
-      project: { id: projectId, ...data, status: "shipped", reviewNote: "" },
+      project: {
+        id: projectId,
+        ...data,
+        hoursSpent: tracked.hoursSpent,
+        status: "materials_review",
+        reviewNote: "",
+      },
+    };
+  } catch (error) {
+    return projectFormError(error);
+  }
+}
+
+export async function confirmKitReceivedFromForm(formData: FormData) {
+  const projectId = Number(formData.get("projectId"));
+  if (!Number.isInteger(projectId)) throw new Error("Invalid project.");
+  const session = await requireSession();
+  await confirmKitReceivedForUser(
+    { userId: session.user.id, email: session.user.email },
+    projectId,
+  );
+  revalidatePath("/platform/projects");
+}
+
+export async function submitDemoFromForm(
+  _previousState: ProjectFormState,
+  formData: FormData,
+): Promise<ProjectFormState> {
+  try {
+    const projectId = Number(formData.get("projectId"));
+    if (!Number.isInteger(projectId)) throw new Error("Invalid project.");
+    const playableUrl = z
+      .string()
+      .trim()
+      .min(1, "Upload a demo video first")
+      .max(2048)
+      .parse(formData.get("playableUrl"));
+    const session = await requireSession();
+    await submitDemoForUser(
+      { userId: session.user.id, email: session.user.email },
+      projectId,
+      playableUrl,
+    );
+    revalidatePath("/platform/projects");
+    revalidatePath("/platform/admin/review");
+    return {
+      success: true,
+      project: { id: projectId, playableUrl, status: "demo_review" },
     };
   } catch (error) {
     return projectFormError(error);

@@ -14,6 +14,21 @@ import {
   markRealActivity,
 } from "@/lib/editor/activityTracker";
 
+const NON_TRACKING_PROJECT_STATUSES = new Set([
+  "materials_review",
+  "shipped",
+  "reviewed",
+  "approved",
+  "paid_out",
+  "fulfilled",
+  "kit_approved",
+  "kit_fulfillment",
+  "kit_sent",
+  "building",
+  "demo_review",
+  "done",
+]);
+
 loader.config({ paths: { vs: "/monaco/vs" } });
 
 import {
@@ -297,7 +312,10 @@ export function VelxioNextEditor({
           modules,
         );
 
-        if (!locked) {
+        const trackTime =
+          !locked && !NON_TRACKING_PROJECT_STATUSES.has(data.project.status);
+
+        if (trackTime) {
           startActivityTracking(projectId, () =>
             captureEditorState(
               modules.useEditorStore,
@@ -311,7 +329,7 @@ export function VelxioNextEditor({
           );
         }
 
-        if (!locked) {
+        if (trackTime) {
           const unsub1 = (modules.useSimulatorStore as any).subscribe?.(
             (s: any, prev: any) => {
               if (

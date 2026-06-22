@@ -1,12 +1,19 @@
 "use server";
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { BREAD_PER_HOUR } from "@/lib/constants";
 import { db } from "@/lib/db/db";
-import { projects, userBread } from "@/lib/db/schema";
+import {
+  orderItems,
+  orders,
+  products,
+  projectSubmissions,
+  projects,
+  userBread,
+} from "@/lib/db/schema";
 
 const REVIEW_TEXT_LIMIT = 2000;
 
@@ -39,6 +46,59 @@ async function getProjectOrThrow(projectId: number) {
   return project;
 }
 
+async function getPendingSubmissionOrThrow(
+  projectId: number,
+  type: "materials" | "demo",
+) {
+  const row = await db
+    .select()
+    .from(projectSubmissions)
+    .where(
+      and(
+        eq(projectSubmissions.projectId, projectId),
+        eq(projectSubmissions.type, type),
+        eq(projectSubmissions.status, "pending_review"),
+      ),
+    )
+    .orderBy(desc(projectSubmissions.submittedAt))
+    .limit(1);
+  const submission = row[0];
+  if (!submission)
+    throw new Error(`This project has no pending ${type} submission`);
+  return submission;
+}
+
+async function getOrCreateKitProduct(tx: typeof db, kitType: string) {
+  const name = kitType === "esp32" ? "Kit B" : "Kit A";
+  const imageUrl =
+    kitType === "esp32" ? "/assets/esp32.png" : "/assets/arduino.png";
+  const existing = await tx
+    .select({ id: products.id, imageUrl: products.imageUrl })
+    .from(products)
+    .where(eq(products.name, name))
+    .limit(1);
+  if (existing[0]) {
+    if (existing[0].imageUrl !== imageUrl) {
+      await tx
+        .update(products)
+        .set({ imageUrl })
+        .where(eq(products.id, existing[0].id));
+    }
+    return existing[0].id;
+  }
+  const [created] = await tx
+    .insert(products)
+    .values({
+      name,
+      description: `${name} project kit`,
+      imageUrl,
+      price: 0,
+      active: false,
+    })
+    .returning({ id: products.id });
+  return created.id;
+}
+
 function revalidateReviewViews(projectId?: number) {
   revalidatePath("/platform/admin/review");
   if (projectId) revalidatePath(`/platform/admin/review/${projectId}`);
@@ -52,27 +112,44 @@ export async function markReviewed(
 ) {
   await requireAdminSession();
   const id = requirePositiveProjectId(projectId);
-  const project = await getProjectOrThrow(id);
-  if (project.status !== "shipped")
-    throw new Error("Only shipped projects can be reviewed");
-  const hours = normalizeHours(overrideHours, project.hoursSpent);
+  const submission = await getPendingSubmissionOrThrow(id, "materials");
+  const hours = normalizeHours(overrideHours, submission.hoursSpent);
   const reviewJustification = normalizeReviewText(
     justification,
     "Justification",
   );
 
-  const [updatedProject] = await db
-    .update(projects)
-    .set({
-      status: "reviewed",
-      overrideHoursSpent: hours,
-      overrideHoursSpentJustification: reviewJustification,
-      reviewNote: "",
-      updatedAt: new Date(),
-    })
-    .where(and(eq(projects.id, id), eq(projects.status, "shipped")))
-    .returning({ id: projects.id });
-  if (!updatedProject) throw new Error("Only shipped projects can be reviewed");
+  await db.transaction(async (tx) => {
+    const [updatedSubmission] = await tx
+      .update(projectSubmissions)
+      .set({
+        status: "approved",
+        approvedHours: hours,
+        internalNote: reviewJustification,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(projectSubmissions.id, submission.id),
+          eq(projectSubmissions.status, "pending_review"),
+        ),
+      )
+      .returning({ id: projectSubmissions.id });
+    if (!updatedSubmission)
+      throw new Error("Only pending snapshots can be reviewed");
+
+    await tx
+      .update(projects)
+      .set({
+        status: "reviewed",
+        overrideHoursSpent: hours,
+        overrideHoursSpentJustification: reviewJustification,
+        reviewNote: "",
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, id));
+  });
   await audit("admin.review.mark_reviewed", "project", String(id), {
     hours,
     justification: reviewJustification,
@@ -96,42 +173,135 @@ export async function approveProject(
   );
   const reviewComment = normalizeReviewText(userComment, "User comment");
 
+  const project = await getProjectOrThrow(id);
+  if (project.status === "demo_review") {
+    const submission = await getPendingSubmissionOrThrow(id, "demo");
+    const creditedUser = await db.transaction(async (tx) => {
+      const [updatedSubmission] = await tx
+        .update(projectSubmissions)
+        .set({
+          status: "approved",
+          approvedHours: hours,
+          internalNote: reviewJustification,
+          userComment: reviewComment,
+          breadAmount: bread,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(projectSubmissions.id, submission.id),
+            eq(projectSubmissions.status, "pending_review"),
+          ),
+        )
+        .returning({ userId: projectSubmissions.userId });
+      if (!updatedSubmission)
+        throw new Error("Only pending demos can be approved");
+      await tx
+        .update(projects)
+        .set({
+          status: "done",
+          overrideHoursSpent: hours,
+          overrideHoursSpentJustification: reviewJustification,
+          reviewNote: reviewComment,
+          breadAmount: bread,
+          approvedAt: new Date(),
+          doneAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, id));
+      await tx
+        .insert(userBread)
+        .values({ userId: updatedSubmission.userId, balance: bread })
+        .onConflictDoUpdate({
+          target: userBread.userId,
+          set: {
+            balance: sql`${userBread.balance} + ${bread}`,
+            updatedAt: new Date(),
+          },
+        });
+      return updatedSubmission.userId;
+    });
+    await audit("admin.user.bread_add", "user", creditedUser, {
+      amount: bread,
+    });
+    await audit("admin.review.demo_approve", "project", String(id), {
+      hours,
+      bread,
+    });
+    revalidateReviewViews(id);
+    return;
+  }
+
+  const submission = await getPendingSubmissionOrThrow(id, "materials");
   const creditedUser = await db.transaction(async (tx) => {
-    const [updatedProject] = await tx
+    const [updatedSubmission] = await tx
+      .update(projectSubmissions)
+      .set({
+        status: "approved",
+        approvedHours: hours,
+        internalNote: reviewJustification,
+        userComment: reviewComment,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(projectSubmissions.id, submission.id),
+          eq(projectSubmissions.status, "pending_review"),
+        ),
+      )
+      .returning({ userId: projectSubmissions.userId });
+
+    if (!updatedSubmission)
+      throw new Error("Only pending snapshots can be approved");
+
+    await tx
       .update(projects)
       .set({
-        status: "paid_out",
+        status: "kit_fulfillment",
         overrideHoursSpent: hours,
         overrideHoursSpentJustification: reviewJustification,
         reviewNote: reviewComment,
-        breadAmount: bread,
-        approvedAt: new Date(),
+        kitApprovedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(and(eq(projects.id, id), eq(projects.status, "shipped")))
-      .returning({ userId: projects.userId });
+      .where(eq(projects.id, id));
 
-    if (!updatedProject)
-      throw new Error("Only shipped projects can be approved");
-
+    const kitProductId = await getOrCreateKitProduct(tx, project.kitType);
+    const [kitOrder] = await tx
+      .insert(orders)
+      .values({
+        userId: project.userId,
+        totalCost: 0,
+        shippingName: `${project.firstName} ${project.lastName}`.trim(),
+        shippingLine1: project.addressLine1,
+        shippingLine2: project.addressLine2,
+        shippingCity: project.city,
+        shippingRegion: project.region,
+        shippingPostalCode: project.postalCode,
+        shippingCountry: project.country,
+        source: "project_kit",
+        projectId: id,
+      })
+      .returning({ id: orders.id });
+    await tx.insert(orderItems).values({
+      orderId: kitOrder.id,
+      productId: kitProductId,
+      quantity: 1,
+      unitPrice: 0,
+    });
     await tx
-      .insert(userBread)
-      .values({ userId: updatedProject.userId, balance: bread })
-      .onConflictDoUpdate({
-        target: userBread.userId,
-        set: {
-          balance: sql`${userBread.balance} + ${bread}`,
-          updatedAt: new Date(),
-        },
-      });
+      .update(projects)
+      .set({ kitOrderId: kitOrder.id, updatedAt: new Date() })
+      .where(eq(projects.id, id));
 
-    return updatedProject.userId;
+    return updatedSubmission.userId;
   });
 
-  await audit("admin.user.bread_add", "user", creditedUser, { amount: bread });
-  await audit("admin.review.approve", "project", String(id), {
+  await audit("admin.review.materials_approve", "project", String(id), {
     hours,
-    bread,
+    userId: creditedUser,
   });
   revalidateReviewViews(id);
 }
@@ -201,22 +371,35 @@ export async function fulfillProject(projectId: number) {
 export async function requestChanges(projectId: number, note: string) {
   await requireAdminSession();
   const id = requirePositiveProjectId(projectId);
+  const project = await getProjectOrThrow(id);
+  const submission = await getPendingSubmissionOrThrow(
+    id,
+    project.status === "demo_review" ? "demo" : "materials",
+  );
   const reviewNote = normalizeReviewText(note, "Note");
-  const [updatedProject] = await db
-    .update(projects)
-    .set({
-      status: "needs_changes",
-      reviewNote,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(projects.id, id),
-        inArray(projects.status, ["shipped", "reviewed", "needs_changes"]),
-      ),
-    )
-    .returning({ id: projects.id });
-  if (!updatedProject) throw new Error("This project cannot request changes");
+  await db.transaction(async (tx) => {
+    const [updatedSubmission] = await tx
+      .update(projectSubmissions)
+      .set({
+        status: "needs_changes",
+        userComment: reviewNote,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(projectSubmissions.id, submission.id),
+          eq(projectSubmissions.status, "pending_review"),
+        ),
+      )
+      .returning({ id: projectSubmissions.id });
+    if (!updatedSubmission)
+      throw new Error("This snapshot cannot request changes");
+    await tx
+      .update(projects)
+      .set({ status: "needs_changes", reviewNote, updatedAt: new Date() })
+      .where(eq(projects.id, id));
+  });
   await audit("admin.review.request_changes", "project", String(id), {
     note: reviewNote,
   });
@@ -226,18 +409,34 @@ export async function requestChanges(projectId: number, note: string) {
 export async function rejectProject(projectId: number, note: string) {
   await requireAdminSession();
   const id = requirePositiveProjectId(projectId);
+  const project = await getProjectOrThrow(id);
+  const submission = await getPendingSubmissionOrThrow(
+    id,
+    project.status === "demo_review" ? "demo" : "materials",
+  );
   const reviewNote = normalizeReviewText(note, "Note");
-  const [updatedProject] = await db
-    .update(projects)
-    .set({ status: "rejected", reviewNote, updatedAt: new Date() })
-    .where(
-      and(
-        eq(projects.id, id),
-        inArray(projects.status, ["shipped", "reviewed", "needs_changes"]),
-      ),
-    )
-    .returning({ id: projects.id });
-  if (!updatedProject) throw new Error("This project cannot be rejected");
+  await db.transaction(async (tx) => {
+    const [updatedSubmission] = await tx
+      .update(projectSubmissions)
+      .set({
+        status: "rejected",
+        userComment: reviewNote,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(projectSubmissions.id, submission.id),
+          eq(projectSubmissions.status, "pending_review"),
+        ),
+      )
+      .returning({ id: projectSubmissions.id });
+    if (!updatedSubmission) throw new Error("This snapshot cannot be rejected");
+    await tx
+      .update(projects)
+      .set({ status: "rejected", reviewNote, updatedAt: new Date() })
+      .where(eq(projects.id, id));
+  });
   await audit("admin.review.reject", "project", String(id), {
     note: reviewNote,
   });

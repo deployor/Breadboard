@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { LoginButton, LogoutButton } from "@/components/shared/auth-buttons";
 import { badgeLinkClass, linkUnderlineClass } from "@/components/shared/styles";
+import { launched } from "@/flags";
 import { getSession } from "@/lib/auth/guards";
 
 const navLinks = [
@@ -13,7 +14,10 @@ const navLinks = [
 ];
 
 export async function Header({ isSticky = false }: { isSticky?: boolean }) {
-  const session = await getSession();
+  const [session, isLaunched] = await Promise.all([getSession(), launched()]);
+  const visibleNavLinks = isLaunched
+    ? navLinks
+    : navLinks.filter((link) => link.href !== "/platform");
 
   return (
     <header
@@ -32,7 +36,7 @@ export async function Header({ isSticky = false }: { isSticky?: boolean }) {
             />
           </Link>
           <nav className="flex flex-1 items-center justify-center gap-4 px-4 sm:gap-6 sm:px-6 md:gap-8">
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -43,7 +47,7 @@ export async function Header({ isSticky = false }: { isSticky?: boolean }) {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            {session ? <LogoutButton /> : <LoginButton />}
+            {isLaunched ? session ? <LogoutButton /> : <LoginButton /> : null}
             <a
               href="https://hackclub.com"
               target="_blank"

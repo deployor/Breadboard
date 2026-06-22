@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { LoadingInline } from "@/components/shared/loading-card";
 import { authClient } from "@/lib/auth/client";
 
@@ -48,14 +49,17 @@ export function LoginButton({
 }
 
 export function LogoutButton() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const signOut = async () => {
     setLoading(true);
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => window.location.reload(),
-      },
-    });
+    try {
+      await authClient.signOut();
+      router.replace("/");
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

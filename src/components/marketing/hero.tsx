@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   useActionState,
   useCallback,
@@ -170,15 +171,15 @@ function PushButton({
   href: string;
   id: string;
 }) {
+  const router = useRouter();
+
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-black">
       <button
         type="button"
         className="group cursor-pointer border-0 bg-transparent p-0"
         aria-label={`${label} red pushbutton`}
-        onClick={() => {
-          window.location.href = href;
-        }}
+        onClick={() => router.push(href)}
       >
         <svg
           viewBox="0 0 80 80"

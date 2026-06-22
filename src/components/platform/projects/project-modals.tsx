@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { HiPhoto, HiArrowUpTray } from "react-icons/hi2";
+import Image from "next/image";
 import {
   createProjectFromForm,
   shipProjectFromForm,
@@ -10,6 +11,9 @@ import {
 import { createProjectScreenshotUpload } from "@/actions/uploads";
 import { LoadingInline } from "@/components/shared/loading-card";
 import { Modal } from "@/components/shared/modal";
+import { Button } from "@/components/ui/button";
+import { Input, inputClass } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import type { PlatformProject, ProjectFormState } from "@/types";
 
 type Project = PlatformProject;
@@ -19,8 +23,7 @@ const initialProjectFormState: ProjectFormState = { success: false };
 
 const shipFields = [
   ["email", "Email"],
-  ["playableUrl", "Playable URL"],
-  ["codeUrl", "Code URL"],
+  ["codeUrl", "Code / README URL"],
   ["firstName", "First Name"],
   ["lastName", "Last Name"],
   ["birthday", "Birthday"],
@@ -75,57 +78,69 @@ export function NewProjectModal({
       }
     >
       <form id="new-project-form" action={formAction} className="grid gap-4">
-        <label className="flex flex-col gap-2">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-black/45">
-            Project title
-          </span>
-          <input
+        <FormField label="Project title" id="new-project-title">
+          <Input
+            id="new-project-title"
             name="title"
             required
             autoFocus
             placeholder="Pocket synth, plant monitor, LED game..."
-            className="rounded-[12px] border border-black bg-[#f4f4f4] px-4 py-4 text-xl font-black outline-none focus:ring-4 focus:ring-[#BD0F32]/20"
+            className="px-4 py-4 text-xl font-black"
           />
-        </label>
-        <label className="flex flex-col gap-2">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-black/45">
-            Short description
-          </span>
+        </FormField>
+        <FormField label="Short description" id="new-project-description">
           <textarea
+            id="new-project-description"
             name="description"
             rows={5}
             placeholder="One or two sentences about the project."
-            className="rounded-[12px] border border-black bg-[#f4f4f4] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[#BD0F32]/20"
+            className={inputClass("px-4 py-3")}
           />
-        </label>
+        </FormField>
         <fieldset className="grid gap-2">
-          <legend className="text-xs font-black uppercase tracking-[0.14em] text-black/45 mb-1">
+          <legend className="mb-1 text-xs font-black uppercase tracking-[0.14em] text-black/45">
             Which kit are you using?
           </legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {(["arduino", "esp32"] as const).map((value) => (
               <label
                 key={value}
-                className={`flex cursor-pointer items-start gap-3 rounded-[12px] border-2 p-4 transition ${
+                className={cn(
+                  "flex cursor-pointer items-start gap-4 rounded-[12px] border-2 p-4 transition",
                   kitType === value
                     ? "border-[#BD0F32] bg-[#fff5f7]"
-                    : "border-black bg-white hover:bg-zinc-50"
-                }`}
+                    : "border-black bg-white hover:bg-zinc-50",
+                )}
               >
-                <input
-                  type="radio"
-                  name="kitType"
-                  value={value}
-                  checked={kitType === value}
-                  onChange={() => setKitType(value)}
-                  className="mt-0.5 size-4 accent-[#BD0F32]"
-                />
+                <div className="relative size-16 shrink-0 overflow-hidden rounded-[10px] border border-black bg-white">
+                  <Image
+                    src={
+                      value === "esp32"
+                        ? "/assets/esp32.png"
+                        : "/assets/arduino.png"
+                    }
+                    alt={value === "esp32" ? "ESP32 kit" : "Arduino kit"}
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                  />
+                </div>
                 <div>
-                  <p className="text-sm font-black text-black">
-                    {value === "esp32"
-                      ? "B - Advanced (ESP32)"
-                      : "A - Beginner (Arduino)"}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="kitType"
+                      value={value}
+                      checked={kitType === value}
+                      onChange={() => setKitType(value)}
+                      className="mt-0.5 size-4 accent-[#BD0F32]"
+                    />
+                    <p className="text-sm font-black text-black">
+                      {value === "esp32"
+                        ? "B - Advanced (ESP32)"
+                        : "A - Beginner (Arduino)"}
+                    </p>
+                  </div>
                   <p className="mt-1 text-xs text-black/50">
                     {value === "esp32"
                       ? "ESP32 board, breadboard, more sensors, Wi-Fi support."
@@ -181,29 +196,25 @@ export function EditProjectModal({
     >
       <form id={formId} action={formAction} className="grid gap-4">
         <input type="hidden" name="projectId" value={project.id} />
-        <label className="flex flex-col gap-2">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-black/45">
-            Project title
-          </span>
-          <input
+        <FormField label="Project title" id={`project-title-${project.id}`}>
+          <Input
+            id={`project-title-${project.id}`}
             name="title"
             defaultValue={project.title}
             required
             autoFocus
-            className="rounded-[12px] border border-black bg-[#f4f4f4] px-4 py-4 text-xl font-black outline-none focus:ring-4 focus:ring-[#BD0F32]/20"
+            className="px-4 py-4 text-xl font-black"
           />
-        </label>
-        <label className="flex flex-col gap-2">
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-black/45">
-            Description
-          </span>
+        </FormField>
+        <FormField label="Description" id={`project-description-${project.id}`}>
           <textarea
+            id={`project-description-${project.id}`}
             name="description"
             defaultValue={project.description}
             rows={6}
-            className="rounded-[12px] border border-black bg-[#f4f4f4] px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-[#BD0F32]/20"
+            className={inputClass("px-4 py-3")}
           />
-        </label>
+        </FormField>
         <ScreenshotUploadField
           projectId={project.id}
           value={screenshotUrl}
@@ -340,7 +351,7 @@ export function ShipProjectModal({
       <Modal
         open
         onClose={onClose}
-        eyebrow="Ship project"
+        eyebrow="Submit materials"
         title={project.title}
         maxWidth="lg"
         tone="red"
@@ -352,15 +363,15 @@ export function ShipProjectModal({
           <h2 className="mt-4 text-4xl font-black text-black">No screenshot</h2>
           <p className="mt-2 max-w-sm mx-auto text-sm font-semibold text-black/55">
             Open <span className="font-black text-black">Edit details</span> on
-            the project card and upload a screenshot before you can ship.
+            the project card and upload a screenshot before you can submit.
           </p>
-          <button
-            type="button"
+          <Button
+            tone="paper"
+            className="mt-6 rounded-full px-8"
             onClick={onClose}
-            className="mt-6 rounded-full border border-black bg-white px-8 py-3 text-sm font-black shadow-[3px_3px_0_#000] hover:bg-black hover:text-white"
           >
             Got it
-          </button>
+          </Button>
         </div>
       </Modal>
     );
@@ -370,22 +381,19 @@ export function ShipProjectModal({
     <Modal
       open
       onClose={onClose}
-      eyebrow="Ship project"
+      eyebrow="Submit materials"
       title={project.title}
       maxWidth="2xl"
       footer={
         <ProjectModalFooter
           formId={formId}
           pending={pending}
-          pendingLabel="Shipping"
-          submitLabel="Submit for review"
+          pendingLabel="Submitting"
+          submitLabel="Submit materials for review"
           onClose={onClose}
         />
       }
     >
-      <p className="mb-4 text-sm font-semibold text-black/60">
-        Submit the project, source, screenshot, and shipping details for review.
-      </p>
       <form
         id={formId}
         action={formAction}
@@ -397,21 +405,27 @@ export function ShipProjectModal({
           name="screenshotUrl"
           value={project.screenshotUrl}
         />
+        <div className="rounded-xl border border-black bg-[#f4f4f4] p-3 text-sm font-black text-black md:col-span-2 xl:col-span-3">
+          {project.hoursSpent}h tracked
+        </div>
         {shipFields.map(([key, label]) => (
-          <label key={key} className="flex flex-col gap-1">
-            <span className="text-xs font-black uppercase tracking-[0.12em] text-black/45">
-              {label}
-            </span>
-            <input
+          <FormField
+            key={key}
+            label={label}
+            id={`${formId}-${key}`}
+            className="gap-1"
+          >
+            <Input
+              id={`${formId}-${key}`}
               name={key}
               defaultValue={String(project[key])}
               required={key !== "addressLine2"}
               type={
                 key === "email" ? "email" : key === "birthday" ? "date" : "text"
               }
-              className="rounded-[10px] border border-black bg-[#f4f4f4] px-3 py-2 text-sm"
+              className="py-2"
             />
-          </label>
+          </FormField>
         ))}
         <ProjectActionMessage
           message={state.message}
@@ -439,21 +453,42 @@ function ProjectModalFooter({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <button
-        type="button"
-        onClick={onClose}
-        className="rounded-full border border-black bg-white px-5 py-3 text-sm font-black shadow-[3px_3px_0_#000] hover:bg-black hover:text-white"
-      >
+      <Button tone="paper" className="rounded-full" onClick={onClose}>
         Cancel
-      </button>
-      <button
+      </Button>
+      <Button
         type="submit"
         form={formId}
         disabled={pending || disabled}
-        className="rounded-full border border-black bg-[#BD0F32] px-6 py-3 text-sm font-black text-white shadow-[3px_3px_0_#000] hover:bg-black disabled:opacity-50"
+        tone="primary"
+        className="rounded-full px-6"
       >
         {pending ? <LoadingInline label={pendingLabel} /> : submitLabel}
-      </button>
+      </Button>
+    </div>
+  );
+}
+
+function FormField({
+  label,
+  id,
+  children,
+  className,
+}: {
+  label: string;
+  id: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      <label
+        htmlFor={id}
+        className="text-xs font-black uppercase tracking-[0.14em] text-black/45"
+      >
+        {label}
+      </label>
+      {children}
     </div>
   );
 }

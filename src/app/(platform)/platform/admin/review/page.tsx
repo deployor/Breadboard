@@ -1,8 +1,13 @@
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { LoginButton } from "@/components/shared/auth-buttons";
 import { getSession, isAdminSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
-import { projectEditorVersions, projects, user } from "@/lib/db/schema";
+import {
+  projectEditorVersions,
+  projectSubmissions,
+  projects,
+  user,
+} from "@/lib/db/schema";
 import { ReviewQueue } from "@/components/platform/review-queue";
 
 export default async function AdminReviewPage() {
@@ -30,11 +35,14 @@ export default async function AdminReviewPage() {
   const queue = await db
     .select({
       id: projects.id,
+      submissionId: projectSubmissions.id,
+      submissionNumber: projectSubmissions.submissionNumber,
       title: projects.title,
-      hoursSpent: projects.hoursSpent,
-      screenshotUrl: projects.screenshotUrl,
-      status: projects.status,
-      shippedAt: projects.shippedAt,
+      hoursSpent: projectSubmissions.hoursSpent,
+      screenshotUrl: projectSubmissions.screenshotUrl,
+      status: projectSubmissions.status,
+      submissionType: projectSubmissions.type,
+      shippedAt: projectSubmissions.submittedAt,
       userEmail: user.email,
       kitType: projects.kitType,
       versionCount: db.$count(
@@ -42,18 +50,19 @@ export default async function AdminReviewPage() {
         eq(projectEditorVersions.projectId, projects.id),
       ),
     })
-    .from(projects)
+    .from(projectSubmissions)
+    .innerJoin(projects, eq(projectSubmissions.projectId, projects.id))
     .innerJoin(user, eq(projects.userId, user.id))
     .where(
-      inArray(projects.status, [
-        "shipped",
+      inArray(projectSubmissions.status, [
+        "pending_review",
         "needs_changes",
-        "reviewed",
-        "paid_out",
+        "approved",
         "fulfilled",
+        "rejected",
       ]),
     )
-    .orderBy(asc(projects.shippedAt));
+    .orderBy(asc(projectSubmissions.submittedAt));
 
   return (
     <main className="space-y-5">

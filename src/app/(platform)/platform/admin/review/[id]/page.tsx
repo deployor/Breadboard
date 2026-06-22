@@ -1,11 +1,17 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { HiArrowLeft } from "react-icons/hi2";
 import { LoginButton } from "@/components/shared/auth-buttons";
 import { getSession, isAdminSession } from "@/lib/auth/guards";
 import { BREAD_PER_HOUR } from "@/lib/constants";
 import { db } from "@/lib/db/db";
-import { projects, reviewNotes, user } from "@/lib/db/schema";
+import {
+  projectSubmissions,
+  projectJournals,
+  projects,
+  reviewNotes,
+  user,
+} from "@/lib/db/schema";
 import { ReviewWorkspace } from "@/components/platform/review-workspace";
 
 export default async function AdminReviewProjectPage({
@@ -40,31 +46,44 @@ export default async function AdminReviewProjectPage({
   const row = await db
     .select({
       id: projects.id,
+      submissionId: projectSubmissions.id,
+      submissionNumber: projectSubmissions.submissionNumber,
+      editorVersionNumber: projectSubmissions.editorVersionNumber,
       title: projects.title,
-      email: projects.email,
-      playableUrl: projects.playableUrl,
-      codeUrl: projects.codeUrl,
-      screenshotUrl: projects.screenshotUrl,
+      email: projectSubmissions.email,
+      playableUrl: projectSubmissions.playableUrl,
+      demoVideoUrl: projectSubmissions.demoVideoUrl,
+      codeUrl: projectSubmissions.codeUrl,
+      screenshotUrl: projectSubmissions.screenshotUrl,
       description: projects.description,
-      firstName: projects.firstName,
-      lastName: projects.lastName,
-      hoursSpent: projects.hoursSpent,
-      overrideHoursSpent: projects.overrideHoursSpent,
-      overrideHoursSpentJustification: projects.overrideHoursSpentJustification,
-      status: projects.status,
-      reviewNote: projects.reviewNote,
-      breadAmount: projects.breadAmount,
-      shippedAt: projects.shippedAt,
-      updatedAt: projects.updatedAt,
+      firstName: projectSubmissions.firstName,
+      lastName: projectSubmissions.lastName,
+      hoursSpent: projectSubmissions.hoursSpent,
+      overrideHoursSpent: projectSubmissions.approvedHours,
+      overrideHoursSpentJustification: projectSubmissions.internalNote,
+      status: projectSubmissions.status,
+      projectStatus: projects.status,
+      reviewNote: projectSubmissions.userComment,
+      breadAmount: projectSubmissions.breadAmount,
+      submissionType: projectSubmissions.type,
+      shippedAt: projectSubmissions.submittedAt,
+      updatedAt: projectSubmissions.updatedAt,
       createdAt: projects.createdAt,
       kitType: projects.kitType,
       userName: user.name,
       userEmail: user.email,
       userId: projects.userId,
     })
-    .from(projects)
+    .from(projectSubmissions)
+    .innerJoin(projects, eq(projectSubmissions.projectId, projects.id))
     .innerJoin(user, eq(projects.userId, user.id))
-    .where(eq(projects.id, projectId))
+    .where(
+      and(
+        eq(projectSubmissions.projectId, projectId),
+        eq(projectSubmissions.type, "materials"),
+      ),
+    )
+    .orderBy(desc(projectSubmissions.submittedAt))
     .limit(1);
 
   const project = row[0];
@@ -88,7 +107,7 @@ export default async function AdminReviewProjectPage({
     );
   }
 
-  const [projectNotes, userNotes] = await Promise.all([
+  const [projectNotes, userNotes, journals] = await Promise.all([
     db
       .select()
       .from(reviewNotes)
@@ -99,6 +118,11 @@ export default async function AdminReviewProjectPage({
       .from(reviewNotes)
       .where(eq(reviewNotes.targetUserId, project.userId))
       .orderBy(desc(reviewNotes.createdAt)),
+    db
+      .select()
+      .from(projectJournals)
+      .where(eq(projectJournals.projectId, projectId))
+      .orderBy(desc(projectJournals.createdAt)),
   ]);
 
   return (
@@ -114,6 +138,7 @@ export default async function AdminReviewProjectPage({
         project={project}
         projectNotes={projectNotes}
         userNotes={userNotes}
+        journals={journals}
         currentUserId={session.user.id}
         targetUserId={project.userId}
         breadPerHour={BREAD_PER_HOUR}

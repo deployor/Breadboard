@@ -10,6 +10,19 @@ import {
   updateUserProfile,
 } from "@/actions/admin/users";
 import { Modal } from "@/components/shared/modal";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DataPanel,
+  DataTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+  TableScroll,
+} from "@/components/ui/table";
 import { slackPfpUrl } from "@/lib/utils/slack-pfp";
 
 type AdminUser = {
@@ -83,114 +96,99 @@ export function AdminUsersTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-[14px] border border-black bg-white shadow-[5px_5px_0_#000]">
-        <div className="flex items-center justify-between gap-4 border-b border-black bg-[#f4f4f4] px-5 py-4">
-          <div>
-            <h2 className="text-2xl font-black text-black">Users</h2>
-            <p className="mt-1 text-sm text-black/55">
-              Search and manage accounts.
-            </p>
-          </div>
-          <input
+      <DataPanel
+        title="Users"
+        description="Search, sort, and manage accounts."
+        action={
+          <Input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search users..."
-            className="w-80 rounded-[10px] border border-black bg-white px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-[#BD0F32]/20"
+            className="w-full bg-white sm:w-80"
           />
-        </div>
-
-        <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-black text-white">
-            <tr>
-              <SortableHeader
-                label="User"
-                sortKey="name"
-                sort={sort}
-                onSort={setSortKey}
-              />
-              <SortableHeader
-                label="Email"
-                sortKey="email"
-                sort={sort}
-                onSort={setSortKey}
-              />
-              <SortableHeader
-                label="Bread"
-                sortKey="balance"
-                sort={sort}
-                onSort={setSortKey}
-              />
-              <SortableHeader
-                label="Orders"
-                sortKey="orderCount"
-                sort={sort}
-                onSort={setSortKey}
-              />
-              <SortableHeader
-                label="Sessions"
-                sortKey="activeSessionCount"
-                sort={sort}
-                onSort={setSortKey}
-              />
-              <th className="px-4 py-3 font-semibold">Admin</th>
-              <th className="px-4 py-3 font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-black/10">
-            {filteredUsers.map((user) => (
-              <tr
-                key={user.id}
-                className="bg-white transition hover:bg-[#fffaf1]"
-              >
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="relative size-10 overflow-hidden rounded-full border border-black bg-[#f4f4f4]">
-                      <UserAvatar user={user} />
-                    </div>
-                    <div>
-                      <p className="font-black text-black">{user.name}</p>
-                      <p className="text-xs text-black/45">
-                        {user.id.slice(0, 10)}...
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-black/70">{user.email}</td>
-                <td className="px-4 py-3 font-black text-black">
-                  {user.balance}
-                </td>
-                <td className="px-4 py-3 text-black/70">
-                  {user.orderCount} total / {user.pendingOrderCount} pending
-                </td>
-                <td className="px-4 py-3 text-black/70">
-                  {user.activeSessionCount}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded border px-2 py-1 text-xs font-semibold ${
-                      user.admin
-                        ? "border-[#BD0F32] bg-[#BD0F32] text-white"
-                        : "border-black/20 bg-[#f4f4f4] text-black/45"
-                    }`}
-                  >
-                    {user.admin ? "Admin" : "No"}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(user)}
-                    className="rounded border border-black bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-black hover:text-white"
-                  >
-                    Manage
-                  </button>
-                </td>
+        }
+      >
+        <TableScroll>
+          <DataTable className="min-w-[980px]">
+            <TableHead>
+              <tr>
+                <SortableHeader
+                  label="User"
+                  sortKey="name"
+                  sort={sort}
+                  onSort={setSortKey}
+                />
+                <SortableHeader
+                  label="Email"
+                  sortKey="email"
+                  sort={sort}
+                  onSort={setSortKey}
+                />
+                <SortableHeader
+                  label="Bread"
+                  sortKey="balance"
+                  sort={sort}
+                  onSort={setSortKey}
+                />
+                <SortableHeader
+                  label="Orders"
+                  sortKey="orderCount"
+                  sort={sort}
+                  onSort={setSortKey}
+                />
+                <SortableHeader
+                  label="Sessions"
+                  sortKey="activeSessionCount"
+                  sort={sort}
+                  onSort={setSortKey}
+                />
+                <TableHeaderCell>Admin</TableHeaderCell>
+                <TableHeaderCell>Actions</TableHeaderCell>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </TableHead>
+            <TableBody>
+              {filteredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="relative size-10 overflow-hidden rounded-full border border-black bg-[#f4f4f4]">
+                        <UserAvatar user={user} />
+                      </div>
+                      <div>
+                        <p className="font-black text-black">{user.name}</p>
+                        <p className="text-xs text-black/45">
+                          {user.id.slice(0, 10)}...
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-black/70">{user.email}</TableCell>
+                  <TableCell className="font-black text-black">
+                    {user.balance}
+                  </TableCell>
+                  <TableCell className="text-black/70">
+                    {user.orderCount} total / {user.pendingOrderCount} pending
+                  </TableCell>
+                  <TableCell className="text-black/70">
+                    {user.activeSessionCount}
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone={user.admin ? "red" : "muted"}>
+                      {user.admin ? "Admin" : "No"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button size="sm" onClick={() => setSelected(user)}>
+                      Manage
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </DataTable>
+        </TableScroll>
+      </DataPanel>
 
       {selected ? (
         <UserModal
@@ -250,7 +248,7 @@ function SortableHeader({
   onSort: (key: SortKey) => void;
 }) {
   return (
-    <th className="px-4 py-3">
+    <TableHeaderCell>
       <button
         type="button"
         onClick={() => onSort(sortKey)}
@@ -259,7 +257,7 @@ function SortableHeader({
         {label}{" "}
         {sort.key === sortKey ? (sort.direction === "asc" ? "↑" : "↓") : ""}
       </button>
-    </th>
+    </TableHeaderCell>
   );
 }
 

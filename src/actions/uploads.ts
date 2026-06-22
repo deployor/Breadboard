@@ -10,6 +10,12 @@ const imageContentTypes = new Map([
   ["image/webp", "webp"],
 ]);
 
+const videoContentTypes = new Map([
+  ["video/mp4", "mp4"],
+  ["video/webm", "webm"],
+  ["video/quicktime", "mov"],
+]);
+
 export async function createProjectScreenshotUpload(
   projectId: number,
   contentType: string,
@@ -23,6 +29,23 @@ export async function createProjectScreenshotUpload(
 
   return createPresignedPutUrl({
     key: `project-screenshots/${session.user.id}/${id}/${randomUUID()}.${extension}`,
+    contentType,
+  });
+}
+
+export async function createProjectDemoVideoUpload(
+  projectId: number,
+  contentType: string,
+) {
+  const session = await requireSession();
+  const id = Number(projectId);
+  if (!Number.isInteger(id) || id < 1) throw new Error("Invalid project");
+
+  const extension = videoContentTypes.get(contentType);
+  if (!extension) throw new Error("Upload an MP4, WebM, or MOV video.");
+
+  return createPresignedPutUrl({
+    key: `project-demo-videos/${session.user.id}/${id}/${randomUUID()}.${extension}`,
     contentType,
   });
 }

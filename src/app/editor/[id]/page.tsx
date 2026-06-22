@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { VelxioNextEditor } from "@/components/velxio/VelxioEditorClient";
 import { getSession, isAdminSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
-import { projects } from "@/lib/db/schema";
+import { projectSubmissions, projects } from "@/lib/db/schema";
 import { EditorHeader } from "../_components/EditorHeader";
 import { audit } from "@/lib/audit";
 
@@ -39,18 +39,30 @@ export default async function ProjectEditorPage({
       ? `/platform/admin/review/${projectId}`
       : "/platform/projects";
   const backLabel = isAdmin && !isOwner ? "Review" : "Projects";
-  const editable =
-    project.status === "draft" || project.status === "needs_changes";
+  const editable = isOwner;
 
   const { version: versionParam } = await searchParams;
   const version = versionParam ? Number(versionParam) : undefined;
   if (version !== undefined && (!Number.isInteger(version) || version < 1)) {
     notFound();
   }
-  if (version === undefined && !editable) {
-    redirect("/platform/projects");
-  }
   const readOnly = version !== undefined || !isOwner || !editable;
+  const submissionRows =
+    version !== undefined
+      ? await db
+          .select({ submissionNumber: projectSubmissions.submissionNumber })
+          .from(projectSubmissions)
+          .where(
+            and(
+              eq(projectSubmissions.projectId, projectId),
+              eq(projectSubmissions.editorVersionNumber, version),
+            ),
+          )
+          .limit(1)
+      : [];
+  const reviewLabel = submissionRows[0]
+    ? `Shipped snapshot #${submissionRows[0].submissionNumber}`
+    : undefined;
 
   void audit("editor.access", "project", String(projectId));
 
@@ -60,8 +72,11 @@ export default async function ProjectEditorPage({
         backHref={backHref}
         backLabel={backLabel}
         projectTitle={project.title}
+        projectId={project.id}
+        projectStatus={project.status}
         version={version}
         readOnly={readOnly}
+        reviewLabel={reviewLabel}
       />
       <div className="flex-1 relative">
         <VelxioNextEditor

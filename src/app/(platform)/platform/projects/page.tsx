@@ -1,7 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import { LoginButton } from "@/components/shared/auth-buttons";
-import { PageHero } from "@/components/shared/platform-docs-frame";
 import { ProjectsBoard } from "@/components/platform/projects-board";
+import { Surface } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { getSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
 import { projects } from "@/lib/db/schema";
@@ -12,6 +13,7 @@ const projectColumns = {
   title: projects.title,
   email: projects.email,
   playableUrl: projects.playableUrl,
+  demoVideoUrl: projects.demoVideoUrl,
   codeUrl: projects.codeUrl,
   screenshotUrl: projects.screenshotUrl,
   description: projects.description,
@@ -44,10 +46,14 @@ export default async function ProjectsPage() {
   if (!session) {
     return (
       <>
-        <PageHero title="My Projects" />
-        <div className="rounded-[12px] border border-black bg-[#f4f4f4] p-6 shadow-[4px_4px_0_#000]">
+        <PageHeader
+          eyebrow="Workshop"
+          title="Your projects"
+          description="Sign in to create, edit, and submit your builds."
+        />
+        <Surface className="mt-6 bg-[#f4f4f4]">
           <LoginButton callbackURL="/platform/projects" />
-        </div>
+        </Surface>
       </>
     );
   }
@@ -59,14 +65,5 @@ export default async function ProjectsPage() {
     .orderBy(desc(projects.updatedAt));
   const userProjects = projectRows.map(normalizeProjectRow);
 
-  return (
-    <>
-      <PageHero title="My Projects">
-        <p className="mt-2 text-sm text-black/60">
-          Build, edit, and submit projects.
-        </p>
-      </PageHero>
-      <ProjectsBoard projects={userProjects} />
-    </>
-  );
+  return <ProjectsBoard projects={userProjects} />;
 }

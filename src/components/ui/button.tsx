@@ -1,47 +1,61 @@
-import { type ButtonHTMLAttributes, forwardRef } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
+type ButtonTone = "primary" | "ink" | "paper" | "danger";
 type ButtonSize = "sm" | "md" | "lg";
 
-const variantStyles: Record<ButtonVariant, string> = {
+const baseButtonClass =
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-black font-black no-underline transition duration-150 ease-out focus-visible:outline-none focus-visible:ring-[5px] focus-visible:ring-[#bd0f3273] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-45";
+
+const toneClass: Record<ButtonTone, string> = {
   primary:
-    "rounded-xl bg-[#BD0F32] px-4 py-2.5 text-sm font-black text-white shadow-[3px_3px_0_#000] hover:-translate-y-0.5 hover:bg-black disabled:opacity-50",
-  secondary:
-    "rounded-xl bg-black px-4 py-2.5 text-sm font-black text-white shadow-[3px_3px_0_#BD0F32] hover:-translate-y-0.5 hover:bg-[#BD0F32] disabled:opacity-50",
-  outline:
-    "rounded-xl border border-black bg-white px-4 py-2.5 text-sm font-black text-black shadow-[3px_3px_0_#000] hover:-translate-y-0.5 hover:bg-black hover:text-white disabled:opacity-50",
-  ghost:
-    "rounded-xl px-4 py-2.5 text-sm font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-60",
+    "bg-[#BD0F32] text-white shadow-[3px_3px_0_#000] hover:-translate-y-0.5 hover:bg-black active:translate-y-0",
+  ink: "bg-black text-white shadow-[3px_3px_0_#BD0F32] hover:-translate-y-0.5 hover:bg-[#BD0F32] active:translate-y-0",
+  paper:
+    "bg-white text-black shadow-[2px_2px_0_#000] hover:-translate-y-0.5 hover:bg-black hover:text-white active:translate-y-0",
   danger:
-    "rounded-xl border border-red-700 bg-red-50 px-4 py-2.5 text-sm font-black text-red-700 hover:bg-red-700 hover:text-white disabled:opacity-50",
+    "bg-white text-[#BD0F32] shadow-[2px_2px_0_#000] hover:-translate-y-0.5 hover:bg-[#BD0F32] hover:text-white active:translate-y-0",
 };
 
-const sizeStyles: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2.5 text-sm",
-  lg: "px-6 py-3.5 text-base",
+const sizeClass: Record<ButtonSize, string> = {
+  sm: "px-3 py-2 text-xs",
+  md: "px-4 py-3 text-sm",
+  lg: "px-5 py-3 text-sm",
 };
 
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: ButtonVariant;
+export function buttonClass({
+  tone = "paper",
+  size = "md",
+  className,
+}: {
+  tone?: ButtonTone;
   size?: ButtonSize;
+  className?: string;
+} = {}) {
+  return cn(baseButtonClass, toneClass[tone], sizeClass[size], className);
+}
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  tone?: ButtonTone;
+  size?: ButtonSize;
+  children: ReactNode;
 };
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", size = "md", ...props }, ref) => {
-    return (
-      <button
-        ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-xl font-black transition-all disabled:cursor-not-allowed",
-          variantStyles[variant],
-          sizeStyles[size],
-          className,
-        )}
-        {...props}
-      />
-    );
-  },
-);
-Button.displayName = "Button";
+export function Button({
+  tone = "paper",
+  size = "md",
+  className,
+  children,
+  type = "button",
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={buttonClass({ tone, size, className })}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}

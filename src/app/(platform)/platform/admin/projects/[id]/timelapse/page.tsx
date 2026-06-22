@@ -9,10 +9,13 @@ import { TimelapseViewer } from "@/components/platform/timelapse-viewer";
 
 export default async function AdminTimelapsePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ until?: string }>;
 }) {
   const { id } = await params;
+  const { until } = await searchParams;
   const projectId = Number(id);
   const session = await getSession();
   if (!session) {
@@ -61,6 +64,7 @@ export default async function AdminTimelapsePage({
       <TimelapseViewer
         projectId={projectId}
         projectTitle={`${project.title} · ${project.userName}`}
+        until={until}
       />
     </main>
   );

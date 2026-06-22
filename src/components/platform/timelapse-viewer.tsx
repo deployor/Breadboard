@@ -83,9 +83,11 @@ function gapLabel(previous: string, next: string): string | null {
 export function TimelapseViewer({
   projectId,
   projectTitle,
+  until,
 }: {
   projectId: number;
   projectTitle: string;
+  until?: string;
 }) {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [snapshots, setSnapshots] = useState<ParsedSnapshot[]>([]);
@@ -111,7 +113,8 @@ export function TimelapseViewer({
     stopTimer();
     setPlaying(false);
 
-    fetch(`/api/editor/projects/${projectId}/timelapse/frames`, {
+    const query = until ? `?until=${encodeURIComponent(until)}` : "";
+    fetch(`/api/editor/projects/${projectId}/timelapse/frames${query}`, {
       credentials: "include",
     })
       .then(async (response) => {
@@ -145,7 +148,7 @@ export function TimelapseViewer({
     return () => {
       cancelled = true;
     };
-  }, [projectId, stopTimer]);
+  }, [projectId, stopTimer, until]);
 
   const seekToIndex = useCallback(
     (next: number) => {
@@ -235,7 +238,7 @@ export function TimelapseViewer({
             Timelapse
           </p>
           <h1 className="mt-2 text-3xl font-black text-black">
-            Loading latest activity...
+            Loading activity...
           </h1>
         </div>
       </div>
@@ -271,6 +274,11 @@ export function TimelapseViewer({
             <p className="truncate text-sm font-black text-white">
               {projectTitle}
             </p>
+            {until ? (
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#BD0F32]">
+                Through shipped point
+              </p>
+            ) : null}
             <p className="text-xs text-[#777]">
               {snapshots.length} frames stitched across {sessions.length}{" "}
               sessions · {fmtDuration(totalActive)} active

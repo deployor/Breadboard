@@ -31,9 +31,13 @@ import {
 
 type ReviewProject = {
   id: number;
+  submissionId: number;
+  submissionNumber: number;
+  editorVersionNumber: number | null;
   title: string;
   email: string;
   playableUrl: string;
+  demoVideoUrl: string;
   codeUrl: string;
   screenshotUrl: string;
   description: string;
@@ -43,6 +47,7 @@ type ReviewProject = {
   overrideHoursSpent: number | null;
   overrideHoursSpentJustification: string;
   status: string;
+  projectStatus: string;
   reviewNote: string;
   breadAmount: number;
   shippedAt: Date | null;
@@ -63,6 +68,13 @@ type Note = {
   content: string;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type Journal = {
+  id: number;
+  content: string;
+  activeSecondsCovered: number;
+  createdAt: Date;
 };
 
 const checklistItems = [
@@ -278,6 +290,7 @@ export function ReviewWorkspace({
   project: initial,
   projectNotes: initialProjectNotes,
   userNotes: initialUserNotes,
+  journals,
   currentUserId,
   targetUserId,
   breadPerHour,
@@ -285,6 +298,7 @@ export function ReviewWorkspace({
   project: ReviewProject;
   projectNotes: Note[];
   userNotes: Note[];
+  journals: Journal[];
   currentUserId: string;
   targetUserId: string;
   breadPerHour: number;
@@ -307,13 +321,14 @@ export function ReviewWorkspace({
   const [newUserNote, setNewUserNote] = useState("");
   const screenshot = safeUrl(initial.screenshotUrl);
   const playable = safeUrl(initial.playableUrl);
+  const demoVideo = safeUrl(initial.demoVideoUrl);
   const code = safeUrl(initial.codeUrl);
   const readme = readmeUrl(initial.codeUrl);
   const approvedBread =
     Math.max(0, Math.floor(approvedHours || 0)) * breadPerHour;
 
   const statusTone =
-    initial.status === "shipped"
+    initial.status === "pending_review"
       ? "bg-[#BD0F32] text-white"
       : initial.status === "needs_changes"
         ? "bg-yellow-100 text-yellow-900"
@@ -356,7 +371,16 @@ export function ReviewWorkspace({
               <span className="text-black/25">{initial.userEmail}</span>
             </div>
             <div className="mt-2.5 flex flex-wrap gap-2">
-              <EvidenceButton href={playable} label="Demo" icon={HiPlay} />
+              <EvidenceButton
+                href={playable}
+                label="Playable demo"
+                icon={HiPlay}
+              />
+              <EvidenceButton
+                href={demoVideo}
+                label="Demo video"
+                icon={HiPlay}
+              />
               <EvidenceButton href={code} label="Code" icon={HiCodeBracket} />
               <EvidenceButton
                 href={readme}
@@ -369,7 +393,11 @@ export function ReviewWorkspace({
                 icon={HiPhoto}
               />
               <EvidenceButton
-                href={`/editor/${initial.id}`}
+                href={
+                  initial.editorVersionNumber
+                    ? `/editor/${initial.id}?version=${initial.editorVersionNumber}`
+                    : `/editor/${initial.id}`
+                }
                 label="Editor"
                 icon={HiPencilSquare}
               />
@@ -379,7 +407,9 @@ export function ReviewWorkspace({
                 icon={HiClock}
               />
               <EvidenceButton
-                href={`/platform/admin/projects/${initial.id}/timelapse`}
+                href={`/platform/admin/projects/${initial.id}/timelapse?until=${encodeURIComponent(
+                  initial.shippedAt?.toISOString() ?? "",
+                )}`}
                 label="Timelapse"
                 icon={HiFilm}
               />
@@ -451,7 +481,7 @@ export function ReviewWorkspace({
                   </label>
                   <label className="grid gap-1.5">
                     <span className="text-xs font-black tracking-[0.14em] text-black/40 uppercase">
-                      Ship justification · internal only
+                      Review justification · internal only
                     </span>
                     <textarea
                       value={internalJustification}
@@ -474,7 +504,7 @@ export function ReviewWorkspace({
                   </label>
                   <button
                     type="button"
-                    disabled={pending || initial.status !== "shipped"}
+                    disabled={pending || initial.status !== "pending_review"}
                     onClick={() =>
                       run(() =>
                         approveProject(
@@ -487,7 +517,9 @@ export function ReviewWorkspace({
                     }
                     className="rounded-xl bg-[#BD0F32] py-4 text-sm font-black text-white hover:bg-black disabled:opacity-50"
                   >
-                    Submit approval · {approvedBread} bread
+                    {initial.projectStatus === "demo_review"
+                      ? `Approve demo · ${approvedBread} bread`
+                      : "Approve materials · send kit"}
                   </button>
                 </div>
               ) : (
@@ -590,6 +622,29 @@ export function ReviewWorkspace({
                   {initial.breadAmount} bread
                 </span>
               </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="rounded-[16px] border border-black bg-white p-4 shadow-[4px_4px_0_#000]">
+          <h3 className="text-sm font-black text-black">Journals</h3>
+          <div className="mt-2 max-h-80 space-y-2 overflow-auto pr-1">
+            {journals.map((journal) => (
+              <div
+                key={journal.id}
+                className="rounded-lg border border-black/8 bg-zinc-50 p-2.5 text-xs text-black/65"
+              >
+                <p className="font-black text-black/45">
+                  {new Date(journal.createdAt).toLocaleString()} ·{" "}
+                  {Math.round(journal.activeSecondsCovered / 60)}m
+                </p>
+                <p className="mt-1 whitespace-pre-wrap">{journal.content}</p>
+              </div>
+            ))}
+            {journals.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-black/10 bg-zinc-50 p-2.5 text-xs text-black/35">
+                No journals submitted.
+              </p>
             ) : null}
           </div>
         </section>

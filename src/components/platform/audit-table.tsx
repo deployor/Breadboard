@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { DataPanel } from "@/components/ui/table";
 
 interface AuditEntry {
   id: number;
@@ -82,7 +85,7 @@ export function AuditTable({ entries }: { entries: AuditEntry[] }) {
   }, [entries, search]);
 
   return (
-    <section className="rounded-[12px] border border-black bg-white">
+    <DataPanel title="Audit log" description="Newest platform activity first.">
       <div className="border-b border-black/15 p-4">
         <label
           className="block text-sm font-bold text-black"
@@ -90,13 +93,13 @@ export function AuditTable({ entries }: { entries: AuditEntry[] }) {
         >
           Search audit logs
         </label>
-        <input
+        <Input
           id="audit-search"
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search actor, action, entity, ID, timestamp, or details"
-          className="mt-2 w-full rounded border border-black bg-white px-3 py-2 text-sm text-black outline-none focus:ring-2 focus:ring-black/20"
+          className="mt-2 w-full"
         />
         <p className="mt-2 text-sm text-black/55">
           {filtered.length} of {entries.length} logs shown. Newest first.
@@ -153,11 +156,14 @@ export function AuditTable({ entries }: { entries: AuditEntry[] }) {
             ))}
           </ol>
         ) : (
-          <div className="p-8 text-center text-sm text-black/60">
-            No audit logs match that search.
+          <div className="p-4">
+            <EmptyState
+              title="No matching audit logs"
+              description="Adjust the search terms to inspect a different actor, action, entity, timestamp, or details payload."
+            />
           </div>
         )}
       </div>
-    </section>
+    </DataPanel>
   );
 }

@@ -8,29 +8,25 @@ const cards = [
     title: "What Is Breadboard",
     content:
       "Breadboard is a YSWS (You Ship, We Ship) program run by high schoolers, where you build a real breadboard project and get a component kit shipped to you for free! It's organized by Hack Club, a 501(c)(3) nonprofit that supports a global community of high school makers.",
-    bg: "#F3F3F3",
-    fg: "#000",
+    tone: "paper",
   },
   {
     title: "Do I need prior experience?",
     content:
       "Not at all! Breadboard is built for makers of all skill levels. If you've never touched a breadboard before, our getting started doc and tutorials will walk you through everything you need to know.",
-    bg: "#BD0F32",
-    fg: "#FFF",
+    tone: "red",
   },
   {
     title: "Can I submit multiple projects?",
     content:
       "Yes! After your first kit, you'll get access to the shop where you can submit more projects and redeem additional components and kits.",
-    bg: "#BD0F32",
-    fg: "#FFF",
+    tone: "red",
   },
   {
     title: "Eligibility",
     content:
       "Any teenager aged 13-18 anywhere in the world can participate in Breadboard!",
-    bg: "#F3F3F3",
-    fg: "#000",
+    tone: "paper",
   },
 ];
 
@@ -85,10 +81,8 @@ export function FAQCards() {
             key={card.title}
             onPointerMove={handleCardMove}
             onPointerLeave={resetCard}
-            className="faq-card group relative overflow-hidden rounded-[45px] border-2 border-[#191A23] p-10 text-center shadow-[4px_4px_0_#191A23] [--mx:50%] [--my:50%] [backdrop-filter:blur(4px)] [transform-style:preserve-3d] transition-shadow duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_140px_at_var(--mx)_var(--my),rgba(255,255,255,0.38),transparent_70%)] before:opacity-0 before:transition-opacity before:duration-300 after:pointer-events-none after:absolute after:inset-px after:rounded-[42px] after:border after:border-white/35 hover:shadow-[12px_16px_30px_rgba(25,26,35,.22),0_22px_45px_rgba(25,26,35,.2)] hover:before:opacity-100"
+            className={`faq-card group relative overflow-hidden rounded-[45px] border-2 border-[#191A23] bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,.25),transparent_40%),linear-gradient(130deg,rgba(255,255,255,.18),rgba(255,255,255,.02))] p-10 text-center shadow-[4px_4px_0_#191A23] [--mx:50%] [--my:50%] [backdrop-filter:blur(4px)] [transform-style:preserve-3d] transition-shadow duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_140px_at_var(--mx)_var(--my),rgba(255,255,255,0.38),transparent_70%)] before:opacity-0 before:transition-opacity before:duration-300 after:pointer-events-none after:absolute after:inset-px after:rounded-[42px] after:border after:border-white/35 hover:shadow-[12px_16px_30px_rgba(25,26,35,.22),0_22px_45px_rgba(25,26,35,.2)] hover:before:opacity-100 ${card.tone === "red" ? "bg-[#BD0F32] text-white" : "bg-[#F3F3F3] text-black"}`}
             style={{
-              background: `radial-gradient(circle at 0% 0%, rgba(255,255,255,.25), transparent 40%), linear-gradient(130deg, rgba(255,255,255,.18), rgba(255,255,255,.02)), ${card.bg}`,
-              color: card.fg,
               animationDelay: `${i * 120}ms`,
             }}
           >

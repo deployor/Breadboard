@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import { eq } from "drizzle-orm";
 import { PlatformSidebar } from "@/components/layout/platform-sidebar";
 import { LoginButton } from "@/components/shared/auth-buttons";
+import { LaunchGate } from "@/components/shared/launch-gate";
 import { pageGridClass } from "@/components/shared/styles";
+import { launched } from "@/flags";
 import { getSession, isAdminSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
 import { user as userTable } from "@/lib/db/schema";
@@ -12,6 +14,8 @@ export default async function PlatformLayout({
 }: {
   children: ReactNode;
 }) {
+  if (!(await launched())) return <LaunchGate />;
+
   const session = await getSession();
 
   if (!session) {

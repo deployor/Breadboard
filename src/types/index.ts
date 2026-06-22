@@ -1,5 +1,12 @@
 export type ProjectStatus =
   | "draft"
+  | "materials_review"
+  | "kit_approved"
+  | "kit_fulfillment"
+  | "kit_sent"
+  | "building"
+  | "demo_review"
+  | "done"
   | "shipped"
   | "reviewed"
   | "paid_out"
@@ -34,7 +41,6 @@ export type SidebarSection = {
 
 export type ShipInput = {
   email: string;
-  playableUrl: string;
   codeUrl: string;
   screenshotUrl: string;
   addressLine1: string;
@@ -58,9 +64,11 @@ export type PlatformProject = ShipInput & {
   id: number;
   title: string;
   description: string;
-  hoursSpent: number;
+  playableUrl: string;
   status: ProjectStatus;
   reviewNote: string;
+  demoVideoUrl: string;
+  hoursSpent: number;
   kitType: "arduino" | "esp32";
 };
 

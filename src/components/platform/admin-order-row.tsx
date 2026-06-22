@@ -3,6 +3,9 @@
 import Image from "next/image";
 import { useActionState, useEffect, useState } from "react";
 import { updateOrderStatusFromForm } from "@/actions/shop";
+import { Button } from "@/components/ui/button";
+import { Card, CardSection } from "@/components/ui/card";
+import { Input, inputClass, Label } from "@/components/ui/input";
 import type { OrderStatus, OrderStatusFormState } from "@/types";
 
 type AdminOrderItem = {
@@ -48,7 +51,7 @@ export function OrderRow({
   }, [state]);
 
   return (
-    <div className="overflow-hidden rounded-[12px] border border-black bg-white">
+    <Card elevated={false} className="rounded-[12px]">
       <div className="grid gap-3 border-b border-black bg-[#f4f4f4] px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
         <div>
           <p className="text-lg font-semibold text-black">Order #{orderId}</p>
@@ -60,7 +63,7 @@ export function OrderRow({
         </div>
       </div>
 
-      <div className="grid gap-4 p-5 lg:grid-cols-[1fr_360px]">
+      <CardSection className="grid gap-4 p-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-3">
           {items.map((item) => (
             <div
@@ -88,15 +91,16 @@ export function OrderRow({
 
         <form action={formAction} className="space-y-3">
           <input type="hidden" name="orderId" value={orderId} />
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-bold text-black/50">Status</span>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`status-${orderId}`}>Status</Label>
             <select
+              id={`status-${orderId}`}
               name="status"
               value={status}
               onChange={(event) =>
                 setStatus(normalizeOrderStatus(event.target.value))
               }
-              className="rounded-[10px] border border-black bg-white px-3 py-2 text-sm"
+              className={inputClass("bg-white py-2")}
             >
               {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -104,32 +108,34 @@ export function OrderRow({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-bold text-black/50">Tracking</span>
-            <input
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`tracking-${orderId}`}>Tracking</Label>
+            <Input
+              id={`tracking-${orderId}`}
               type="url"
               name="trackingInfo"
               defaultValue={currentTracking ?? ""}
               placeholder="Tracking link"
-              className="rounded-[10px] border border-black bg-white px-3 py-2 text-sm"
+              className="bg-white py-2"
             />
-          </label>
-          <button
+          </div>
+          <Button
             type="submit"
             disabled={pending}
-            className="w-full rounded border border-black bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#BD0F32] disabled:opacity-50"
+            tone="ink"
+            className="w-full"
           >
             {pending ? "Saving..." : "Save"}
-          </button>
+          </Button>
           {state.message ? (
             <p className="text-sm font-bold text-[#BD0F32]" aria-live="polite">
               {state.message}
             </p>
           ) : null}
         </form>
-      </div>
-    </div>
+      </CardSection>
+    </Card>
   );
 }
 

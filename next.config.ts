@@ -38,7 +38,6 @@ const nextConfig: NextConfig = {
     ],
   },
   reactCompiler: process.env.NODE_ENV === "production",
-  serverExternalPackages: ["pg"],
   turbopack: {
     root: __dirname,
     rules: {

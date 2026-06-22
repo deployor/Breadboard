@@ -55,14 +55,20 @@ export function EditorHeader({
   backHref,
   backLabel,
   projectTitle,
+  projectId,
+  projectStatus,
   version,
   readOnly,
+  reviewLabel,
 }: {
   backHref: string;
   backLabel: string;
   projectTitle: string;
+  projectId: number;
+  projectStatus: string;
   version?: number;
   readOnly?: boolean;
+  reviewLabel?: string;
 }) {
   const router = useRouter();
   const [state, setState] = useState<EditorSaveState>({
@@ -98,6 +104,20 @@ export function EditorHeader({
   }, [readOnly, saving, state.status]);
 
   const showStatus = state.status !== "idle";
+  const trackingBlocked = [
+    "materials_review",
+    "shipped",
+    "reviewed",
+    "approved",
+    "paid_out",
+    "fulfilled",
+    "kit_approved",
+    "kit_fulfillment",
+    "kit_sent",
+    "building",
+    "demo_review",
+    "done",
+  ].includes(projectStatus);
 
   return (
     <header className="flex h-10 shrink-0 items-center gap-2 border-b border-[#333] px-3 select-none bg-[#1e1e1e]">
@@ -119,12 +139,24 @@ export function EditorHeader({
       )}
       {readOnly ? (
         <span className="rounded-full border border-[#444] px-2 py-0.5 text-[11px] font-semibold text-[#999]">
-          Read-only review
+          {reviewLabel ?? "Read-only review"}
+        </span>
+      ) : null}
+      {trackingBlocked && !readOnly ? (
+        <span className="rounded border border-[#BD0F32] bg-[#BD0F32] px-3 py-1 text-sm font-black tracking-[0.04em] text-white uppercase">
+          No extra time here will be tracked
+        </span>
+      ) : null}
+      {readOnly ? (
+        <span className="hidden text-[11px] font-semibold text-[#777] md:inline">
+          Read-only. Live edits are not shown here.
         </span>
       ) : null}
 
       <div className="ml-auto flex items-center gap-3">
-        {!readOnly ? <EditorActivityIndicator /> : null}
+        {!readOnly && !trackingBlocked ? (
+          <EditorActivityIndicator projectId={projectId} />
+        ) : null}
         {showStatus && (
           <span
             className="flex items-center gap-1.5 text-xs text-[#888]"

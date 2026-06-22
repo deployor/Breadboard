@@ -1,29 +1,33 @@
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+
+type BadgeTone = "ink" | "red" | "yellow" | "green" | "muted";
+
+const toneClass: Record<BadgeTone, string> = {
+  ink: "border-black bg-black text-white",
+  red: "border-black bg-[#BD0F32] text-white",
+  yellow: "border-yellow-900/20 bg-yellow-100 text-yellow-950",
+  green: "border-green-900/20 bg-green-100 text-green-950",
+  muted: "border-black/10 bg-zinc-100 text-zinc-700",
+};
 
 export function Badge({
   children,
-  variant = "default",
+  tone = "muted",
   className,
-}: {
-  children: React.ReactNode;
-  variant?: "default" | "success" | "warning" | "danger" | "info";
-  className?: string;
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & {
+  children: ReactNode;
+  tone?: BadgeTone;
 }) {
-  const variants = {
-    default: "bg-zinc-100 text-zinc-600",
-    success: "border-green-800 bg-green-50 text-green-800",
-    warning: "border-yellow-800 bg-yellow-50 text-yellow-900",
-    danger: "border-red-700 bg-red-50 text-red-700",
-    info: "border-blue-800 bg-blue-50 text-blue-800",
-  };
-
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-black uppercase",
-        variants[variant],
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-black uppercase tracking-[0.08em]",
+        toneClass[tone],
         className,
       )}
+      {...props}
     >
       {children}
     </span>

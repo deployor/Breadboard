@@ -1,13 +1,17 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import Link from "next/link";
 import { LoginButton } from "@/components/shared/auth-buttons";
 import { DocsFrame, PageHero } from "@/components/shared/platform-docs-frame";
 import { getSession, isAdminSession } from "@/lib/auth/guards";
 import { db } from "@/lib/db/db";
-import { orderItems, orders, products, user } from "@/lib/db/schema";
+import { orderItems, orders, products, projects, user } from "@/lib/db/schema";
 import { FulfillmentCard } from "@/components/platform/fulfillment-card";
 
-export default async function FulfillmentPage() {
+export default async function FulfillmentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ skip?: string }>;
+}) {
   const session = await getSession();
   if (!session) {
     return (
@@ -30,6 +34,8 @@ export default async function FulfillmentPage() {
     );
   }
 
+  const { skip } = await searchParams;
+  const skippedOrderId = Number(skip);
   const nextOrders = await db
     .select({
       id: orders.id,
@@ -43,15 +49,34 @@ export default async function FulfillmentPage() {
       shippingPostalCode: orders.shippingPostalCode,
       shippingCountry: orders.shippingCountry,
       userEmail: user.email,
+      source: orders.source,
+      projectId: orders.projectId,
+      acceptedAt: orders.acceptedAt,
       createdAt: orders.createdAt,
     })
     .from(orders)
     .innerJoin(user, eq(orders.userId, user.id))
-    .where(inArray(orders.status, ["being_fulfilled", "pending"]))
+    .where(
+      Number.isInteger(skippedOrderId) && skippedOrderId > 0
+        ? and(
+            inArray(orders.status, ["being_fulfilled", "pending"]),
+            ne(orders.id, skippedOrderId),
+          )
+        : inArray(orders.status, ["being_fulfilled", "pending"]),
+    )
     .orderBy(asc(orders.status), asc(orders.createdAt))
     .limit(1);
 
   const order = nextOrders[0];
+  let kitType: string | null = null;
+  if (order?.source === "project_kit" && order.projectId) {
+    const projectRow = await db
+      .select({ kitType: projects.kitType })
+      .from(projects)
+      .where(eq(projects.id, order.projectId))
+      .limit(1);
+    kitType = projectRow[0]?.kitType ?? null;
+  }
   const items = order
     ? await db
         .select({
@@ -86,7 +111,7 @@ export default async function FulfillmentPage() {
 
       <section className="mx-auto max-w-[1440px] px-2 py-8 sm:px-6 sm:py-12">
         {order ? (
-          <FulfillmentCard order={order} items={items} />
+          <FulfillmentCard order={order} items={items} kitType={kitType} />
         ) : (
           <div className="rounded-[18px] border border-black bg-white p-10 text-center shadow-[5px_5px_0_#000]">
             <p className="text-3xl font-black text-black">

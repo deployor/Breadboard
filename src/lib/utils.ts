@@ -16,11 +16,11 @@ export function statusLabel(status: string) {
 }
 
 export function canEditProject(status: string) {
-  return status === "draft" || status === "needs_changes";
+  return Boolean(status);
 }
 
 export function canShipProject(status: string) {
-  return status === "draft" || status === "needs_changes";
+  return status !== "shipped";
 }
 
 export function normalizeBread(amount: number) {

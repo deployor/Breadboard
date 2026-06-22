@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { HiLockClosed } from "react-icons/hi2";
+import {
+  confirmKitReceivedFromForm,
+  submitDemoFromForm,
+} from "@/actions/projects";
+import { createProjectDemoVideoUpload } from "@/actions/uploads";
 import {
   canEditProjectCard,
   canShipProjectCard,
@@ -10,6 +16,9 @@ import {
 } from "./project-status";
 import { EditProjectModal, ShipProjectModal } from "./project-modals";
 import { ProjectPreview } from "./project-preview";
+import { Badge } from "@/components/ui/badge";
+import { buttonClass, Button } from "@/components/ui/button";
+import { Card, CardSection } from "@/components/ui/card";
 import type { PlatformProject } from "@/types";
 
 type Project = PlatformProject;
@@ -24,22 +33,74 @@ export function ProjectCard({
 }) {
   const [editOpen, setEditOpen] = useState(false);
   const [shipOpen, setShipOpen] = useState(false);
+  const [demoUrl, setDemoUrl] = useState(project.playableUrl ?? "");
+  const [demoUploading, setDemoUploading] = useState(false);
+  const [demoMessage, setDemoMessage] = useState("");
+  const [demoState, demoAction, demoPending] = useActionState(
+    submitDemoFromForm,
+    { success: false },
+  );
   const editable = canEditProjectCard(project.status);
   const shippable = canShipProjectCard(project.status);
+  const statusTone =
+    project.status === "materials_review" ||
+    project.status === "demo_review" ||
+    project.status === "needs_changes"
+      ? ("red" as const)
+      : project.status === "done" || project.status === "kit_sent"
+        ? ("green" as const)
+        : project.status === "kit_fulfillment"
+          ? ("green" as const)
+          : ("muted" as const);
+
+  useEffect(() => {
+    if (demoState.success && demoState.project)
+      onProjectChange(demoState.project);
+  }, [demoState, onProjectChange]);
+
+  async function uploadDemoVideo(file: File | null) {
+    if (!file) return;
+    setDemoUploading(true);
+    setDemoMessage("Uploading demo video...");
+    try {
+      const { uploadUrl, publicUrl } = await createProjectDemoVideoUpload(
+        project.id,
+        file.type,
+      );
+      const response = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!response.ok) throw new Error("Upload failed. Try again.");
+      setDemoUrl(publicUrl);
+      setDemoMessage("Demo uploaded. Submit it for review.");
+    } catch (error) {
+      setDemoMessage(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      setDemoUploading(false);
+    }
+  }
 
   return (
-    <article className="group overflow-hidden rounded-[16px] border border-black bg-white shadow-[4px_4px_0_#000] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#BD0F32]">
+    <Card className="group transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#BD0F32]">
       <div className="relative aspect-[4/3] overflow-hidden border-b border-black bg-[#f4f4f4]">
         <ProjectPreview project={project} />
       </div>
 
-      <div className="flex min-h-72 flex-col p-4">
-        <div className="flex items-start justify-between gap-3 text-xs font-bold text-black/45">
-          <span>
-            {projectStatusLabel(project.status)} -{" "}
-            {project.kitType === "esp32" ? "ESP32" : "Arduino"}
+      <CardSection className="flex min-h-72 flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Badge tone={statusTone}>
+              {projectStatusLabel(project.status)}
+            </Badge>
+            <Badge tone="ink">
+              {project.kitType === "esp32" ? "ESP32" : "Arduino"}
+            </Badge>
+          </div>
+          <span className="rounded-full border border-black bg-[#f4f4f4] px-2.5 py-1 text-xs font-black text-black shadow-[1px_1px_0_#000]">
+            {project.hoursSpent}h
           </span>
-          <span>{project.hoursSpent}h</span>
         </div>
 
         <div className="mt-3 min-w-0">
@@ -68,31 +129,81 @@ export function ProjectCard({
           {editable ? (
             <Link
               href={`/editor/${project.id}`}
-              className="inline-flex items-center justify-center rounded-xl border border-black bg-black px-4 py-3 text-sm font-black text-white no-underline shadow-[3px_3px_0_#BD0F32] transition hover:bg-[#BD0F32] active:translate-y-0.5"
+              className={buttonClass({ tone: "ink" })}
             >
               Open editor
             </Link>
           ) : null}
           {editable ? (
-            <button
-              type="button"
-              onClick={() => setEditOpen(true)}
-              className="rounded-xl border border-black bg-white px-4 py-3 text-sm font-black transition hover:bg-black hover:text-white active:translate-y-0.5"
-            >
+            <Button tone="paper" onClick={() => setEditOpen(true)}>
               Edit details
-            </button>
+            </Button>
           ) : null}
           {shippable ? (
-            <button
-              type="button"
-              onClick={() => setShipOpen(true)}
-              className="rounded-xl border border-black bg-[#BD0F32] px-4 py-3 text-sm font-black text-white shadow-[3px_3px_0_#000] transition hover:bg-black active:translate-y-0.5"
-            >
-              {project.status === "needs_changes" ? "Ship again" : "Ship"}
-            </button>
-          ) : null}
+            <Button tone="primary" onClick={() => setShipOpen(true)}>
+              {project.status === "needs_changes"
+                ? "Submit again"
+                : "Submit materials"}
+            </Button>
+          ) : project.status === "kit_sent" ? (
+            <form action={confirmKitReceivedFromForm}>
+              <input type="hidden" name="projectId" value={project.id} />
+              <Button type="submit" tone="primary">
+                Confirm package received
+              </Button>
+            </form>
+          ) : project.status === "building" ? (
+            <form action={demoAction} className="grid gap-2">
+              <input type="hidden" name="projectId" value={project.id} />
+              <input type="hidden" name="playableUrl" value={demoUrl} />
+              <input
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                disabled={demoUploading || demoPending}
+                onChange={(event) =>
+                  void uploadDemoVideo(event.target.files?.[0] ?? null)
+                }
+                className="rounded border border-black px-3 py-2 text-sm"
+              />
+              {demoUrl ? (
+                <video
+                  src={demoUrl}
+                  controls
+                  className="h-32 rounded border border-black bg-black"
+                >
+                  <track kind="captions" />
+                </video>
+              ) : null}
+              {demoMessage ? (
+                <p className="text-xs font-bold text-black/55">{demoMessage}</p>
+              ) : null}
+              <Button
+                type="submit"
+                tone="primary"
+                disabled={demoPending || demoUploading || !demoUrl}
+              >
+                {demoPending ? "Submitting..." : "Submit demo video"}
+              </Button>
+              {demoState.message ? (
+                <p className="text-xs font-bold text-[#BD0F32]">
+                  {demoState.message}
+                </p>
+              ) : null}
+            </form>
+          ) : (
+            <Button tone="paper" disabled className="gap-2">
+              <HiLockClosed className="size-4" />
+              {project.status === "materials_review" ||
+              project.status === "demo_review" ||
+              project.status === "shipped"
+                ? "Under review"
+                : project.status === "done"
+                  ? "Done"
+                  : "Locked"}
+            </Button>
+          )}
         </div>
-      </div>
+      </CardSection>
       {editOpen ? (
         <EditProjectModal
           project={project}
@@ -107,6 +218,6 @@ export function ProjectCard({
           onClose={() => setShipOpen(false)}
         />
       ) : null}
-    </article>
+    </Card>
   );
 }

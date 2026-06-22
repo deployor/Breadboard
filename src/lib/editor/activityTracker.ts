@@ -7,21 +7,51 @@ const MIN_ACTIVITY_MS = 60_000;
 let active = false;
 let sessionId = 0;
 let activeSeconds = 0;
+let unjournaledSeconds = 0;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 let snapshotTimer: ReturnType<typeof setInterval> | null = null;
 let projectId = 0;
 let onStatusChange:
-  | ((s: { status: "active" | "idle"; activeSeconds: number }) => void)
+  | ((s: {
+      status: "active" | "idle" | "blocked";
+      activeSeconds: number;
+      unjournaledSeconds?: number;
+      needsJournal?: boolean;
+      reason?: string;
+    }) => void)
   | null = null;
 
 export function setActivityStatusListener(
-  fn: (s: { status: "active" | "idle"; activeSeconds: number }) => void,
+  fn: (s: {
+    status: "active" | "idle" | "blocked";
+    activeSeconds: number;
+    unjournaledSeconds?: number;
+    needsJournal?: boolean;
+    reason?: string;
+  }) => void,
 ) {
   onStatusChange = fn;
 }
 
 function emit() {
-  onStatusChange?.({ status: active ? "active" : "idle", activeSeconds });
+  onStatusChange?.({
+    status: active ? "active" : "idle",
+    activeSeconds,
+    unjournaledSeconds,
+  });
+}
+
+function emitBlocked(reason: string, needsJournal: boolean, seconds: number) {
+  active = false;
+  activeSeconds = seconds;
+  unjournaledSeconds = seconds;
+  onStatusChange?.({
+    status: "blocked",
+    activeSeconds,
+    unjournaledSeconds,
+    needsJournal,
+    reason,
+  });
 }
 
 let lastActivity = Date.now();
@@ -44,8 +74,13 @@ export async function startActivityTracking(
 
   const result = await sendHeartbeat(projectId);
   if (result) {
+    if (!("sessionId" in result)) {
+      emitBlocked(result.reason, result.needsJournal, result.activeSeconds);
+      return;
+    }
     sessionId = result.sessionId;
     activeSeconds = result.activeSeconds;
+    unjournaledSeconds = result.unjournaledSeconds;
   }
   active = true;
   emit();
@@ -54,8 +89,13 @@ export async function startActivityTracking(
     if (checkRecentActivity()) {
       const result = await sendHeartbeat(projectId);
       if (result) {
+        if (!("sessionId" in result)) {
+          emitBlocked(result.reason, result.needsJournal, result.activeSeconds);
+          return;
+        }
         sessionId = result.sessionId;
         activeSeconds = result.activeSeconds;
+        unjournaledSeconds = result.unjournaledSeconds;
       }
       active = true;
     } else {
@@ -84,11 +124,20 @@ async function sendHeartbeat(projectId: number) {
     { method: "POST" },
   );
   if (!response.ok) return null;
-  return (await response.json()) as {
-    sessionId: number;
-    activeSeconds: number;
-    startedAt: string;
-  };
+  return (await response.json()) as
+    | {
+        sessionId: number;
+        activeSeconds: number;
+        unjournaledSeconds: number;
+        needsJournal: boolean;
+        startedAt: string;
+      }
+    | {
+        blocked: true;
+        reason: string;
+        needsJournal: boolean;
+        activeSeconds: number;
+      };
 }
 
 async function storeSnapshot(

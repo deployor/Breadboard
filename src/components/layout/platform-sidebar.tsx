@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import type { IconType } from "react-icons";
 import {
@@ -66,6 +66,10 @@ const adminNavigation: SidebarSection = {
 };
 
 function isActivePath(pathname: string, href: string) {
+  if (href === "/platform" || href === "/platform/admin") {
+    return pathname === href;
+  }
+
   return (
     pathname === href ||
     (href !== "/platform" && pathname.startsWith(`${href}/`))
@@ -80,6 +84,7 @@ export function PlatformSidebar({
   isAdmin: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [authLoading, setAuthLoading] = useState(false);
   const sections = isAdmin
     ? [...mainNavigation, adminNavigation]
@@ -96,11 +101,13 @@ export function PlatformSidebar({
 
   async function signOut() {
     setAuthLoading(true);
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => window.location.reload(),
-      },
-    });
+    try {
+      await authClient.signOut();
+      router.replace("/");
+      router.refresh();
+    } finally {
+      setAuthLoading(false);
+    }
   }
 
   return (

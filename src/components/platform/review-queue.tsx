@@ -4,20 +4,33 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { HiPhoto } from "react-icons/hi2";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DataPanel } from "@/components/ui/table";
 
 type ReviewProject = {
   id: number;
+  submissionId: number;
+  submissionNumber: number;
   title: string;
   hoursSpent: number;
   screenshotUrl: string;
   status: string;
+  submissionType: string;
   shippedAt: Date | null;
   userEmail: string;
   versionCount: number;
   kitType: string;
 };
 
-const filters = ["all", "shipped", "needs_changes", "reviewed", "paid_out"];
+const filters = [
+  "all",
+  "pending_review",
+  "needs_changes",
+  "approved",
+  "rejected",
+];
 
 function safeUrl(value: string) {
   try {
@@ -39,53 +52,92 @@ function daysAgo(date: Date | null) {
 }
 
 function statusTone(status: string) {
-  if (status === "shipped") return "bg-[#BD0F32] text-white";
-  if (status === "needs_changes") return "bg-yellow-100 text-yellow-900";
-  if (status === "paid_out" || status === "fulfilled")
-    return "bg-green-100 text-green-900";
-  return "bg-zinc-100 text-zinc-700";
+  if (status === "pending_review") return "red";
+  if (status === "needs_changes") return "yellow";
+  if (status === "paid_out" || status === "fulfilled") return "green";
+  return "muted";
 }
 
 function statusLabel(status: string) {
+  if (status === "pending_review") return "in review";
   return status.replace(/_/g, " ");
 }
 
 export function ReviewQueue({ projects }: { projects: ReviewProject[] }) {
+  const [tab, setTab] = useState<"design" | "demo">("design");
   const [filter, setFilter] = useState("all");
   const visible = useMemo(
-    () => projects.filter((item) => filter === "all" || item.status === filter),
-    [projects, filter],
+    () =>
+      projects.filter(
+        (item) =>
+          (tab === "design"
+            ? item.submissionType !== "demo"
+            : item.submissionType === "demo") &&
+          (filter === "all" || item.status === filter),
+      ),
+    [projects, filter, tab],
   );
+  const designCount = projects.filter(
+    (p) => p.submissionType !== "demo",
+  ).length;
+  const demoCount = projects.filter((p) => p.submissionType === "demo").length;
 
   return (
-    <section className="rounded-[16px] border border-black bg-white p-4 shadow-[4px_4px_0_#000]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-black text-black">Submissions</h2>
+    <DataPanel
+      title="Submissions"
+      description="Review design materials and final demo videos."
+    >
+      <div className="flex border-b border-black/10">
+        <button
+          type="button"
+          onClick={() => setTab("design")}
+          className={`px-5 py-3 text-sm font-black ${
+            tab === "design"
+              ? "border-b-2 border-[#BD0F32] text-black"
+              : "text-black/40 hover:text-black"
+          }`}
+        >
+          Design ({designCount})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("demo")}
+          className={`px-5 py-3 text-sm font-black ${
+            tab === "demo"
+              ? "border-b-2 border-[#BD0F32] text-black"
+              : "text-black/40 hover:text-black"
+          }`}
+        >
+          Demo ({demoCount})
+        </button>
+      </div>
+      <div className="border-b border-black/10 p-4">
         <div className="flex flex-wrap gap-2">
           {filters.map((name) => (
-            <button
+            <Button
               key={name}
-              type="button"
               onClick={() => setFilter(name)}
-              className={`rounded-full px-3 py-1.5 text-xs font-black uppercase ${
-                filter === name
-                  ? "bg-[#BD0F32] text-white"
-                  : "bg-zinc-100 text-zinc-500 hover:text-black"
-              }`}
+              tone={filter === name ? "primary" : "paper"}
+              size="sm"
+              className="rounded-full shadow-none"
             >
               {name.replace(/_/g, " ")}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {visible.map((project) => {
           const screenshot = safeUrl(project.screenshotUrl);
           return (
             <Link
               key={project.id}
-              href={`/platform/admin/review/${project.id}`}
+              href={
+                project.submissionType === "demo"
+                  ? `/platform/admin/review/demo/${project.id}`
+                  : `/platform/admin/review/${project.id}`
+              }
               className="group overflow-hidden rounded-[14px] border border-zinc-200 bg-white no-underline transition hover:border-black hover:shadow-[3px_3px_0_#BD0F32]"
             >
               <div className="relative h-36 bg-zinc-50">
@@ -105,11 +157,12 @@ export function ReviewQueue({ projects }: { projects: ReviewProject[] }) {
               </div>
               <div className="p-3">
                 <div className="flex items-start gap-2">
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${statusTone(project.status)}`}
+                  <Badge
+                    tone={statusTone(project.status)}
+                    className="shrink-0 text-[10px]"
                   >
-                    {statusLabel(project.status)}
-                  </span>
+                    {statusLabel(project.status)} #{project.submissionNumber}
+                  </Badge>
                   <span className="text-xs text-black/50">
                     {project.hoursSpent}h
                   </span>
@@ -123,7 +176,8 @@ export function ReviewQueue({ projects }: { projects: ReviewProject[] }) {
                   {project.title}
                 </p>
                 <p className="mt-0.5 text-xs font-semibold text-black/40">
-                  {project.kitType === "esp32" ? "B · ESP32" : "A · Arduino"}
+                  {project.submissionType === "demo" ? "Demo" : "Design"} ·{" "}
+                  {project.kitType === "esp32" ? "ESP32" : "Arduino"}
                 </p>
                 <p className="mt-1 text-xs text-black/40">
                   {daysAgo(project.shippedAt)}
@@ -135,10 +189,13 @@ export function ReviewQueue({ projects }: { projects: ReviewProject[] }) {
       </div>
 
       {visible.length === 0 ? (
-        <p className="py-12 text-center text-sm text-black/50">
-          No projects match this filter.
-        </p>
+        <div className="p-4 pt-0">
+          <EmptyState
+            title="No matching submissions"
+            description="Try a different review filter."
+          />
+        </div>
       ) : null}
-    </section>
+    </DataPanel>
   );
 }
